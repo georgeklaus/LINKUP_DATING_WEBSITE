@@ -60,7 +60,8 @@ def profile_view(request, username):
 def settings_view(request):
     if request.method == 'POST':
         user_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)
-        profile_form = ProfileUpdateForm(request.POST, instance=request.user.profile)
+        profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile_form = ProfileUpdateForm(request.POST, instance=profile_obj)
         
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
@@ -69,7 +70,8 @@ def settings_view(request):
             return redirect('users:settings')
     else:
         user_form = UserUpdateForm(instance=request.user)
-        profile_form = ProfileUpdateForm(instance=request.user.profile)
+        profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile_form = ProfileUpdateForm(instance=profile_obj)
     
     context = {
         'user_form': user_form,
