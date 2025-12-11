@@ -8,16 +8,16 @@ from users.models import CustomUser
 
 @login_required
 def discover(request):
-    suggested_matches = MatchFinder.get_suggested_matches(request.user, limit=20)
+    # Build an ordered queryset first, exclude liked/disliked users, then slice
     online_users = MatchFinder.get_online_users(request.user)
-    
+
     # Exclude users already liked or disliked
     liked_users = UserLike.objects.filter(user=request.user).values_list('liked_user_id', flat=True)
     disliked_users = UserDislike.objects.filter(user=request.user).values_list('disliked_user_id', flat=True)
-    
-    suggested_matches = suggested_matches.exclude(
-        id__in=list(liked_users) + list(disliked_users)
-    )
+
+    suggested_qs = MatchFinder.get_compatible_users(request.user).order_by('-is_online', '-last_activity')
+    suggested_qs = suggested_qs.exclude(id__in=list(liked_users) + list(disliked_users))
+    suggested_matches = suggested_qs[:20]
     
     context = {
         'suggested_matches': suggested_matches,

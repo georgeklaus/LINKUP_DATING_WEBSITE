@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 from .models import ChatRoom, Message, VideoCall
 from users.models import CustomUser
+from users.forms import UserUpdateForm, ProfileUpdateForm
 from matching.utils import MatchFinder
 from django.conf import settings
 import uuid
@@ -29,6 +30,23 @@ def chat_list(request):
     
     context = {
         'chat_rooms': rooms_with_last_message,
+    }
+    return render(request, 'chat/chat_list.html', context)
+    # Also include user/profile update forms for templates that reuse this layout
+    try:
+        user_form = UserUpdateForm(instance=request.user)
+    except Exception:
+        user_form = None
+
+    try:
+        profile_form = ProfileUpdateForm(instance=getattr(request.user, 'userprofile', None))
+    except Exception:
+        profile_form = None
+
+    context = {
+        'chat_rooms': rooms_with_last_message,
+        'user_form': user_form,
+        'profile_form': profile_form,
     }
     return render(request, 'chat/chat_list.html', context)
 
