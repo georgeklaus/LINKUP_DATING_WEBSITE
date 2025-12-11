@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+
+{% block title %}Video Call - LoveConnect{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-video"></i> Video Call with {{ other_user.username }}</h4>
+            </div>
+            <div class="card-body">
+                <!-- Video Call Container -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div id="video-container" class="position-relative bg-dark rounded" style="height: 400px;">
+                            <!-- Local Video -->
+                            <video id="local-video" autoplay muted class="position-absolute top-0 end-0 m-3 rounded" 
+                                   style="width: 200px; height: 150px; object-fit: cover;"></video>
+                            
+                            <!-- Remote Video -->
+                            <video id="remote-video" autoplay class="w-100 h-100 rounded" style="object-fit: cover;"></video>
+                            
+                            <!-- Call Status -->
+                            <div id="call-status" class="position-absolute top-0 start-0 m-3">
+                                <span class="badge bg-success" id="status-badge">
+                                    <i class="fas fa-circle"></i> Connecting...
+                                </span>
+                            </div>
+                            
+                            <!-- Call Timer -->
+                            <div id="call-timer" class="position-absolute top-0 start-50 translate-middle-x m-3 text-white">
+                                <h4 id="timer-display">00:00</h4>
+                            </div>
+                            
+                            <!-- Cost Display -->
+                            <div id="cost-display" class="position-absolute bottom-0 start-0 m-3 text-white">
+                                <small>Cost: <span id="current-cost">0</span> coins</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Call Controls -->
+                <div class="row text-center">
+                    <div class="col-md-12">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-success btn-lg" id="start-call">
+                                <i class="fas fa-play"></i> Start Call
+                            </button>
+                            <button type="button" class="btn btn-danger btn-lg" id="end-call" disabled>
+                                <i class="fas fa-stop"></i> End Call
+                            </button>
+                            <button type="button" class="btn btn-warning btn-lg" id="mute-audio">
+                                <i class="fas fa-microphone"></i> Mute
+                            </button>
+                            <button type="button" class="btn btn-info btn-lg" id="mute-video">
+                                <i class="fas fa-video"></i> Video Off
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Call Information -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="fas fa-info-circle"></i> Call Information</h6>
+                                <ul class="list-unstyled mb-0">
+                                    <li><strong>With:</strong> {{ other_user.username }}</li>
+                                    <li><strong>Cost:</strong> {{ VIDEO_CALL_COST_PER_MIN }} coins per minute</li>
+                                    <li><strong>Your coins:</strong> {{ user.coins }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-warning">
+                            <div class="card-body">
+                                <h6><i class="fas fa-exclamation-triangle"></i> Important</h6>
+                                <p class="mb-0 small">
+                                    Video calls are charged per minute. Ensure you have sufficient coins before starting the call.
+                                    Calls automatically end when you run out of coins.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ room_name|json_script:"room-name" }}
+{{ other_user.username|json_script:"other-user" }}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const roomName = JSON.parse(document.getElementById('room-name').textContent);
+const otherUser = JSON.parse(document.getElementById('other-user').textContent);
+const costPerMinute = {{ VIDEO_CALL_COST_PER_MIN }};
+let callTimer;
+let callSeconds = 0;
+let currentCost = 0;
+
+// WebRTC variables
+let localStream;
+let remoteStream;
+let peerConnection;
+const configuration = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }
+    ]
+};
+
+// DOM elements
+const localVideo = document.getElementById('local-video');
+const remoteVideo = document.getElementById('remote-video');
+const startCallBtn = document.getElementById('start-call');
+const endCallBtn = document.getElementById('end-call');
+const muteAudioBtn = document.getElementById('mute-audio');
+const muteVideoBtn = document.getElementById('mute-video');
+const timerDisplay = document.getElementById('timer-display');
+const costDisplay = document.getElementById('current-cost');
+const statusBadge = document.getElementById('status-badge');
+
+// Initialize media devices
+async function initializeMedia() {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: true 
+        });
+        localVideo.srcObject = localStream;
+        statusBadge.innerHTML = '<i class="fas fa-circle"></i> Ready to call';
+        statusBadge.className = 'badge bg-success';
+    } catch (error) {
+        console.error('Error accessing media devices:', error);
+        statusBadge.innerHTML = '<i class="fas fa-circle"></i> Media access failed';
+        statusBadge.className = 'badge bg-danger';
+    }
+}
+
+// Start call timer
+function startCallTimer() {
+    callTimer = setInterval(() => {
+        callSeconds++;
+        updateTimerDisplay();
+        
+        // Update cost every minute
+        if (callSeconds % 60 === 0) {
+            currentCost += costPerMinute;
+            costDisplay.textContent = currentCost;
+            
+            // Check if user has enough coins
+            if (currentCost > {{ user.coins }}) {
+                endCall();
+                alert('Insufficient coins to continue the call');
+            }
+        }
+    }, 1000);
+}
+
+// Update timer display
+function updateTimerDisplay() {
+    const minutes = Math.floor(callSeconds / 60);
+    const seconds = callSeconds % 60;
+    timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Start call
+startCallBtn.addEventListener('click', async () => {
+    if ({{ user.coins }} < costPerMinute) {
+        alert('Insufficient coins to start video call');
+        return;
+    }
+    
+    try {
+        statusBadge.innerHTML = '<i class="fas fa-circle"></i> Calling...';
+        statusBadge.className = 'badge bg-warning';
+        
+        // Initialize WebRTC connection (simplified)
+        // In a real application, you would implement proper signaling and WebRTC
+        
+        startCallTimer();
+        startCallBtn.disabled = true;
+        endCallBtn.disabled = false;
+        
+        // Simulate call connection
+        setTimeout(() => {
+            statusBadge.innerHTML = '<i class="fas fa-circle"></i> Connected';
+            statusBadge.className = 'badge bg-success';
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error starting call:', error);
+        statusBadge.innerHTML = '<i class="fas fa-circle"></i> Call failed';
+        statusBadge.className = 'badge bg-danger';
+    }
+});
+
+// End call
+endCallBtn.addEventListener('click', endCall);
+
+function endCall() {
+    clearInterval(callTimer);
+    
+    // Stop media streams
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+    if (remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Reset UI
+    startCallBtn.disabled = false;
+    endCallBtn.disabled = true;
+    statusBadge.innerHTML = '<i class="fas fa-circle"></i> Call ended';
+    statusBadge.className = 'badge bg-secondary';
+    
+    // Send call end to server
+    fetch(`/chat/end-video-call/${roomName}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        }
+    });
+    
+    // Redirect after a delay
+    setTimeout(() => {
+        window.location.href = "{% url 'chat:chat_list' %}";
+    }, 3000);
+}
+
+// Mute audio
+muteAudioBtn.addEventListener('click', () => {
+    if (localStream) {
+        const audioTracks = localStream.getAudioTracks();
+        audioTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        muteAudioBtn.innerHTML = track.enabled ? 
+            '<i class="fas fa-microphone"></i> Mute' : 
+            '<i class="fas fa-microphone-slash"></i> Unmute';
+    }
+});
+
+// Mute video
+muteVideoBtn.addEventListener('click', () => {
+    if (localStream) {
+        const videoTracks = localStream.getVideoTracks();
+        videoTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        muteVideoBtn.innerHTML = track.enabled ? 
+            '<i class="fas fa-video"></i> Video Off' : 
+            '<i class="fas fa-video-slash"></i> Video On';
+    }
+});
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', initializeMedia);
+</script>
+
+<style>
+#video-container {
+    background: #000;
+}
+
+#local-video {
+    border: 2px solid #fff;
+    z-index: 10;
+}
+
+#remote-video {
+    background: #333;
+}
+
+.btn-group .btn {
+    margin: 0 5px;
+}
+
+.position-relative {
+    position: relative;
+}
+
+.position-absolute {
+    position: absolute;
+}
+
+.top-0 {
+    top: 0;
+}
+
+.start-0 {
+    left: 0;
+}
+
+.end-0 {
+    right: 0;
+}
+
+.bottom-0 {
+    bottom: 0;
+}
+
+.start-50 {
+    left: 50%;
+}
+
+.translate-middle-x {
+    transform: translateX(-50%);
+}
+</style>
+{% endblock %}

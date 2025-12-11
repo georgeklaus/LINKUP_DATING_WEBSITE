@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+*.egg
+*.pyc
+
+# Virtual environment
+.venv/
+.env/
+
+# Django stuff:
+*.log
+staticfiles/
+media/
+db.sqlite3
+
+# Env file
+.env
+
+# VS Code
+.vscode/
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+
+# Distribution / packaging
+/build/
+/dist/
+
+# PyCharm
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,122 @@
+import json
+import asyncio
+from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from django.utils import timezone
+from .models import ChatRoom, Message, ChatCharge
+from django.conf import settings
+
+class ChatConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.room_name = self.scope['url_route']['kwargs']['room_name']
+        self.room_group_name = f'chat_{self.room_name}'
+        self.user = self.scope['user']
+
+        if self.user.is_anonymous:
+            await self.close()
+            return
+
+        # Join room group
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+
+        await self.accept()
+
+        # Update user online status
+        await self.update_user_online_status(True)
+
+    async def disconnect(self, close_code):
+        # Leave room group
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
+
+        # Update user online status
+        await self.update_user_online_status(False)
+
+    async def receive(self, text_data):
+        text_data_json = json.loads(text_data)
+        message_content = text_data_json['message']
+        message_type = text_data_json.get('type', 'chat_message')
+
+        if message_type == 'chat_message':
+            # Charge for message if it's the first message in this session
+            can_send = await self.charge_for_message()
+            
+            if can_send:
+                # Save message to database
+                message = await self.save_message(message_content)
+                
+                # Send message to room group
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'chat_message',
+                        'message': message_content,
+                        'sender': self.user.username,
+                        'sender_id': self.user.id,
+                        'timestamp': message.timestamp.isoformat(),
+                        'message_id': message.id
+                    }
+                )
+            else:
+                # Notify user about insufficient coins
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'Insufficient coins to send message'
+                }))
+
+    async def chat_message(self, event):
+        # Send message to WebSocket
+        await self.send(text_data=json.dumps({
+            'type': 'chat_message',
+            'message': event['message'],
+            'sender': event['sender'],
+            'sender_id': event['sender_id'],
+            'timestamp': event['timestamp'],
+            'message_id': event['message_id']
+        }))
+
+    @database_sync_to_async
+    def save_message(self, content):
+        room = ChatRoom.objects.get(name=self.room_name)
+        message = Message.objects.create(
+            room=room,
+            sender=self.user,
+            content=content
+        )
+        return message
+
+    @database_sync_to_async
+    def charge_for_message(self):
+        """Charge user for sending message"""
+        room = ChatRoom.objects.get(name=self.room_name)
+        
+        # Check if user was already charged in this session
+        recent_charge = ChatCharge.objects.filter(
+            chat_room=room,
+            user=self.user,
+            charged_at__gte=timezone.now() - timezone.timedelta(minutes=30)
+        ).exists()
+        
+        if not recent_charge:
+            if self.user.coins >= settings.CHAT_COST:
+                self.user.deduct_coins(settings.CHAT_COST)
+                ChatCharge.objects.create(
+                    chat_room=room,
+                    user=self.user,
+                    amount=settings.CHAT_COST
+                )
+                return True
+            else:
+                return False
+        return True
+
+    @database_sync_to_async
+    def update_user_online_status(self, online):
+        self.user.is_online = online
+        self.user.last_activity = timezone.now()
+        self.user.save()

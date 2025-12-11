@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Successful - LoveConnect{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-check-circle"></i> Payment Successful!</h4>
+            </div>
+            <div class="card-body text-center">
+                <i class="fas fa-coins fa-4x text-warning mb-3"></i>
+                <h4 class="text-success">Payment Completed Successfully</h4>
+                <p class="text-muted mb-4">
+                    Your coins have been added to your account. You can now enjoy premium features!
+                </p>
+                
+                <div class="coin-balance display-4 mb-4">
+                    {{ user.coins }}
+                </div>
+                
+                <p class="text-muted">Your new coin balance</p>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-home"></i> Go to Dashboard
+                    </a>
+                    <a href="{% url 'matching:discover' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-search"></i> Find Matches
+                    </a>
+                    <a href="{% url 'chat:chat_list' %}" class="btn btn-outline-success">
+                        <i class="fas fa-comments"></i> Start

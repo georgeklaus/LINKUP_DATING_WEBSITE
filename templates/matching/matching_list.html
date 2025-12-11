@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}My Matches - LoveConnect{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-heart"></i> Your Matches</h4>
+            </div>
+            <div class="card-body">
+                {% if matches %}
+                <p class="lead mb-4">You have {{ matches|length }} match{{ matches|length|pluralize }}! Start chatting and get to know each other.</p>
+                
+                <div class="row">
+                    {% for match_data in matches %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 shadow-sm card-hover">
+                            <div class="card-body text-center">
+                                <img src="{{ match_data.other_user.profile_picture.url }}" 
+                                     class="rounded-circle mb-3" 
+                                     width="120" 
+                                     height="120" 
+                                     style="object-fit: cover;">
+                                
+                                <h5>{{ match_data.other_user.username }}</h5>
+                                <p class="text-muted mb-3">
+                                    {{ match_data.other_user.get_gender_display }}, {{ match_data.other_user.orientation }}
+                                    {% if match_data.other_user.age %}
+                                    · {{ match_data.other_user.age }} years
+                                    {% endif %}
+                                </p>
+                                
+                                {% if match_data.other_user.location %}
+                                <p class="text-muted mb-3">
+                                    <i class="fas fa-map-marker-alt"></i> {{ match_data.other_user.location }}
+                                </p>
+                                {% endif %}
+                                
+                                {% if match_data.other_user.bio %}
+                                <p class="small text-muted mb-3">
+                                    {{ match_data.other_user.bio|truncatewords:15 }}
+                                </p>
+                                {% endif %}
+                                
+                                <div class="small text-muted mb-3 text-start">
+                                    {% if match_data.other_user.profile.occupation %}
+                                    <div><strong>Work:</strong> {{ match_data.other_user.profile.occupation }}</div>
+                                    {% endif %}
+                                    {% if match_data.other_user.profile.relationship_goals %}
+                                    <div><strong>Looking for:</strong> {{ match_data.other_user.profile.relationship_goals }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="card-footer">
+                                <div class="d-grid gap-2">
+                                    <a href="{% url 'chat:chat_room' match_data.other_user.username %}" 
+                                       class="btn btn-primary btn-sm">
+                                        <i class="fas fa-comment"></i> Start Chatting
+                                    </a>
+                                    <a href="{% url 'users:profile_view' match_data.other_user.username %}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i> View Profile
+                                    </a>
+                                </div>
+                                
+                                <div class="text-center mt-2">
+                                    <small class="text-muted">
+                                        Matched {{ match_data.match.created_at|timesince }} ago
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-heart fa-4x text-muted mb-3"></i>
+                    <h4>No matches yet</h4>
+                    <p class="text-muted mb-4">
+                        You haven't matched with anyone yet. Start discovering people and like profiles to get matches!
+                    </p>
+                    <div class="d-grid gap-2 d-md-block">
+                        <a href="{% url 'matching:discover' %}" class="btn btn-primary me-md-2">
+                            <i class="fas fa-search"></i> Discover People
+                        </a>
+                        <a href="{% url 'users:search' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-users"></i> Search Users
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<style>
+.card-hover {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Register - LoveConnect{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-user-plus"></i> Join LoveConnect Today!</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6 text-center">
+                        <i class="fas fa-female text-pink fa-3x mb-2"></i>
+                        <h5>For Women</h5>
+                        <p class="text-muted">Get <strong>100 free coins</strong> upon registration to start connecting!</p>
+                    </div>
+                    <div class="col-md-6 text-center">
+                        <i class="fas fa-male text-primary fa-3x mb-2"></i>
+                        <h5>For Men</h5>
+                        <p class="text-muted">Get <strong>30 free coins</strong> to begin your dating journey!</p>
+                    </div>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.username|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.email|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.password1|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.password2|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.gender|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.orientation|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.date_of_birth|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    {{ form.location|as_crispy_field }}
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" required id="termsCheck">
+                        <label class="form-check-label" for="termsCheck">
+                            I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>. 
+                            I confirm that I am 18 years or older.
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-user-plus"></i> Create My Account
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="mt-3 text-center">
+                    <p>Already have an account? <a href="{% url 'users:login' %}">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

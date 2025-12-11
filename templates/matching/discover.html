@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block title %}Discover Matches - LoveConnect{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-search-heart"></i> Discover Your Matches</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead mb-4">
+                    Find compatible partners based on your preferences. 
+                    Connect with people who share your interests and relationship goals.
+                </p>
+                
+                <!-- Filter Section -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="fas fa-filter"></i> Your Preferences</h6>
+                                <p class="mb-1"><strong>Gender:</strong> {{ user.get_gender_display }}</p>
+                                <p class="mb-1"><strong>Orientation:</strong> {{ user.orientation|title }}</p>
+                                <p class="mb-0"><strong>Location:</strong> {{ user.location|default:"Not specified" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <h6><i class="fas fa-lightbulb"></i> Matching Tip</h6>
+                                <p class="mb-0">
+                                    You're seeing users who match your gender and orientation preferences. 
+                                    Update your preferences in settings to see different matches.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Matches Grid -->
+        <div class="row">
+            {% for match in suggested_matches %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm card-hover">
+                    <div class="card-body text-center">
+                        <!-- Profile Image -->
+                        <div class="position-relative mb-3">
+                            <img src="{{ match.profile_picture.url }}" 
+                                 class="rounded-circle" 
+                                 width="120" 
+                                 height="120" 
+                                 style="object-fit: cover;"
+                                 alt="{{ match.username }}">
+                            {% if match.is_online %}
+                            <span class="position-absolute bottom-0 end-0 p-2 bg-success border border-white rounded-circle">
+                                <span class="visually-hidden">Online</span>
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Basic Info -->
+                        <h5 class="card-title">{{ match.username }}</h5>
+                        <p class="text-muted mb-2">
+                            {{ match.get_gender_display }}, {{ match.orientation }}
+                            {% if match.age %}
+                            · {{ match.age }} years
+                            {% endif %}
+                        </p>
+                        
+                        {% if match.location %}
+                        <p class="text-muted mb-3">
+                            <i class="fas fa-map-marker-alt"></i> {{ match.location }}
+                        </p>
+                        {% endif %}
+                        
+                        <!-- Bio Preview -->
+                        {% if match.bio %}
+                        <p class="card-text small text-muted mb-3">
+                            {{ match.bio|truncatewords:15 }}
+                        </p>
+                        {% endif %}
+                        
+                        <!-- Profile Details -->
+                        <div class="small text-muted mb-3 text-start">
+                            {% if match.profile.occupation %}
+                            <div><strong>Work:</strong> {{ match.profile.occupation }}</div>
+                            {% endif %}
+                            {% if match.profile.education %}
+                            <div><strong>Education:</strong> {{ match.profile.education }}</div>
+                            {% endif %}
+                            {% if match.profile.relationship_goals %}
+                            <div><strong>Looking for:</strong> {{ match.profile.relationship_goals }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="card-footer">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <a href="{% url 'users:profile_view' match.username %}" 
+                                   class="btn btn-outline-primary btn-sm w-100">
+                                    <i class="fas fa-eye"></i> Profile
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{% url 'chat:chat_room' match.username %}" 
+                                   class="btn btn-primary btn-sm w-100">
+                                    <i class="fas fa-comment"></i> Chat
+                                </a>
+                            </div>
+                        </div>
+                        
+                        {% if match.profile.interests %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <strong>Interests:</strong> {{ match.profile.interests|truncatewords:5 }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                <h4>No matches found</h4>
+                <p class="text-muted mb-4">
+                    We couldn't find any matches based on your current preferences.
+                </p>
+                <div class="d-grid gap-2 d-md-block">
+                    <a href="{% url 'users:settings' %}" class="btn btn-primary me-md-2">
+                        <i class="fas fa-cog"></i> Adjust Preferences
+                    </a>
+                    <a href="{% url 'users:search' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-search"></i> Search Users
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Load More Button -->
+        {% if suggested_matches %}
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-primary" id="loadMore">
+                <i class="fas fa-sync-alt"></i> Load More Matches
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('loadMore').addEventListener('click', function() {
+    const button = this;
+    const currentCount = document.querySelectorAll('.col-md-6.col-lg-4.mb-4').length;
+    
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    button.disabled = true;
+    
+    // Simulate loading more matches (in a real app, this would be an AJAX call)
+    setTimeout(() => {
+        // This would be replaced with actual AJAX call to load more matches
+        alert('Loading more matches... This would fetch additional matches from the server.');
+        button.innerHTML = '<i class="fas fa-sync-alt"></i> Load More Matches';
+        button.disabled = false;
+    }, 1500);
+});
+</script>
+
+<style>
+.card-hover {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.position-relative {
+    position: relative;
+}
+
+.position-absolute {
+    position: absolute;
+}
+
+.bottom-0 {
+    bottom: 0;
+}
+
+.end-0 {
+    right: 0;
+}
+
+.bg-success {
+    background-color: #28a745 !important;
+}
+
+.border-white {
+    border-color: white !important;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Failed - LoveConnect{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Payment Failed</h4>
+            </div>
+            <div class="card-body text-center">
+                <i class="fas fa-times-circle fa-4x text-danger mb-3"></i>
+                <h4 class="text-danger">Payment Unsuccessful</h4>
+                <p class="text-muted mb-4">
+                    We couldn't process your payment. This could be due to:
+                </p>
+                
+                <ul class="list-unstyled text-start mb-4">
+                    <li class="mb-2"><i class="fas fa-times text-danger me-2"></i> Insufficient M-Pesa balance</li>
+                    <li class="mb-2"><i class="fas fa-times text-danger me-2"></i> Incorrect phone number</li>
+                    <li class="mb-2"><i class="fas fa-times text-danger me-2"></i> Network issues</li>
+                    <li class="mb-2"><i class="fas fa-times text-danger me-2"></i> Transaction timeout</li>
+                </ul>
+                
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-lightbulb"></i> Tips for successful payment:</h6>
+                    <ul class="mb-0">
+                        <li>Ensure your M-Pesa account has sufficient balance</li>
+                        <li>Use the correct phone number format: 2547XXXXXXXX</li>
+                        <li>Check your network connection</li>
+                        <li>Complete the transaction within 2 minutes</li>
+                    </ul>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'payments:buy_coins' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-redo"></i> Try Again
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-home"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

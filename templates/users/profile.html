@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ profile_user.username }} - LoveConnect{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <img src="{{ profile_user.profile_picture.url }}" class="rounded-circle mb-3" width="150" height="150" style="object-fit: cover;">
+                <h3>{{ profile_user.username }}</h3>
+                <p class="text-muted">
+                    {{ profile_user.get_gender_display }}, {{ profile_user.orientation }}
+                    {% if profile_user.age %}
+                    · {{ profile_user.age }} years
+                    {% endif %}
+                </p>
+                
+                {% if profile_user.location %}
+                <p class="text-muted">
+                    <i class="fas fa-map-marker-alt"></i> {{ profile_user.location }}
+                </p>
+                {% endif %}
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'chat:chat_room' profile_user.username %}" class="btn btn-primary">
+                        <i class="fas fa-comment"></i> Send Message ({{ CHAT_COST }} coins)
+                    </a>
+                    <button class="btn btn-outline-primary" onclick="startVideoCall('{{ profile_user.username }}')">
+                        <i class="fas fa-video"></i> Video Call ({{ VIDEO_CALL_COST_PER_MIN }} coins/min)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Details -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> About</h6>
+            </div>
+            <div class="card-body">
+                {% if profile_user.bio %}
+                <p>{{ profile_user.bio }}</p>
+                <hr>
+                {% endif %}
+                
+                {% if profile_user.profile.occupation %}
+                <p><strong>Occupation:</strong> {{ profile_user.profile.occupation }}</p>
+                {% endif %}
+                
+                {% if profile_user.profile.education %}
+                <p><strong>Education:</strong> {{ profile_user.profile.education }}</p>
+                {% endif %}
+                
+                {% if profile_user.profile.relationship_goals %}
+                <p><strong>Looking for:</strong> {{ profile_user.profile.relationship_goals }}</p>
+                {% endif %}
+                
+                {% if profile_user.profile.height %}
+                <p><strong>Height:</strong> {{ profile_user.profile.height }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- User's Posts -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-newspaper"></i> Recent Posts</h6>
+            </div>
+            <div class="card-body">
+                {% for post in profile_user.posts.all|slice:":5" %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <p class="card-text">{{ post.content }}</p>
+                        {% if post.image %}
+                        <img src="{{ post.image.url }}" class="img-fluid rounded mb-2" alt="Post image">
+                        {% endif %}
+                        <div class="d-flex justify-content-between text-muted small">
+                            <span>{{ post.created_at|timesince }} ago</span>
+                            <span>{{ post.likes.count }} likes · {{ post.comments.count }} comments</span>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center">No posts yet</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Interests -->
+        {% if profile_user.profile.interests %}
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-heart"></i> Interests</h6>
+            </div>
+            <div class="card-body">
+                <p>{{ profile_user.profile.interests }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Lifestyle -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-user"></i> Lifestyle</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if profile_user.profile.smoking_habits %}
+                    <div class="col-md-6">
+                        <strong>Smoking:</strong> {{ profile_user.profile.smoking_habits }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if profile_user.profile.drinking_habits %}
+                    <div class="col-md-6">
+                        <strong>Drinking:</strong> {{ profile_user.profile.drinking_habits }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if profile_user.profile.languages %}
+                    <div class="col-12 mt-2">
+                        <strong>Languages:</strong> {{ profile_user.profile.languages }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function startVideoCall(username) {
+    if (confirm('Start video call with ' + username + '? This will cost {{ VIDEO_CALL_COST_PER_MIN }} coins per minute.')) {
+        fetch(`/chat/video-call/${username}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Redirect to video call room
+                window.location.href = `/chat/video-call-room/${data.room_name}/`;
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to start video call');
+        });
+    }
+}
+</script>
+{% endblock %}

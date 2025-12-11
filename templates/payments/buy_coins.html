@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block title %}Buy Coins - LoveConnect{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="fas fa-coins"></i> Buy Coins</h4>
+            </div>
+            <div class="card-body">
+                <!-- Current Balance -->
+                <div class="alert alert-info">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">Your Current Balance</h5>
+                            <p class="mb-0">You have <strong>{{ user.coins }} coins</strong> available</p>
+                        </div>
+                        <div class="coin-balance display-6">
+                            {{ user.coins }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coin Packages -->
+                <h5 class="mb-4">Choose a Coin Package</h5>
+                <div class="row">
+                    {% for package in packages %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card package-card h-100 border-{% if forloop.counter == 3 %}warning{% else %}primary{% endif %}">
+                            <div class="card-header text-center bg-{% if forloop.counter == 3 %}warning{% else %}primary{% endif %} text-white">
+                                <h5 class="mb-0">{{ package.coins }} Coins</h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <h3 class="text-primary">KES {{ package.amount }}</h3>
+                                <p class="text-muted">{{ package.description }}</p>
+                                
+                                {% if forloop.counter == 3 %}
+                                <span class="badge bg-success">MOST POPULAR</span>
+                                {% elif forloop.counter == 6 %}
+                                <span class="badge bg-danger">BEST VALUE</span>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer text-center">
+                                <button class="btn btn-{% if forloop.counter == 3 %}warning{% else %}primary{% endif %} w-100" 
+                                        onclick="selectPackage({{ package.id }}, {{ package.amount }}, {{ package.coins }})">
+                                    <i class="fas fa-shopping-cart"></i> Buy Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Payment Form (Hidden Initially) -->
+                <div class="card mt-4" id="payment-form" style="display: none;">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Complete Your Purchase</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="mpesa-payment-form" method="post" action="{% url 'payments:buy_coins' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="package" id="selected-package">
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h6>Package Selected</h6>
+                                            <h4 id="package-details" class="text-success"></h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h6>You'll Receive</h6>
+                                            <h4 id="coins-receiving" class="text-warning"></h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="phone_number" class="form-label">M-Pesa Phone Number</label>
+                                <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                                       placeholder="2547XXXXXXXX" pattern="^2547\d{8}$" required>
+                                <div class="form-text">
+                                    Enter your M-Pesa number in format 2547XXXXXXXX
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-info-circle"></i> Payment Instructions</h6>
+                                <ul class="mb-0">
+                                    <li>Enter your M-Pesa registered phone number</li>
+                                    <li>You will receive a prompt on your phone to enter your M-Pesa PIN</li>
+                                    <li>Coins will be added instantly after successful payment</li>
+                                    <li>If you don't receive the prompt, ensure your number is correct</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-lock"></i> Pay with M-Pesa
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="cancelPayment()">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Features -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <h5 class="text-center mb-4">What Can You Do With Coins?</h5>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="p-3">
+                            <i class="fas fa-comment fa-2x text-primary mb-3"></i>
+                            <h6>Send Messages</h6>
+                            <small class="text-muted">{{ CHAT_COST }} coins per chat session</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="p-3">
+                            <i class="fas fa-video fa-2x text-success mb-3"></i>
+                            <h6>Video Calls</h6>
+                            <small class="text-muted">{{ VIDEO_CALL_COST_PER_MIN }} coins per minute</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="p-3">
+                            <i class="fas fa-eye fa-2x text-info mb-3"></i>
+                            <h6>View Profiles</h6>
+                            <small class="text-muted">{{ PROFILE_VIEW_COST }} coins per view</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="p-3">
+                            <i class="fas fa-crown fa-2x text-warning mb-3"></i>
+                            <h6>Premium Features</h6>
+                            <small class="text-muted">Exclusive matching features</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectPackage(packageId, amount, coins) {
+    document.getElementById('selected-package').value = packageId;
+    document.getElementById('package-details').textContent = 'KES ' + amount;
+    document.getElementById('coins-receiving').textContent = coins + ' Coins';
+    document.getElementById('payment-form').style.display = 'block';
+    
+    // Scroll to payment form
+    document.getElementById('payment-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelPayment() {
+    document.getElementById('payment-form').style.display = 'none';
+    document.getElementById('mpesa-payment-form').reset();
+}
+
+// Phone number validation
+document.getElementById('phone_number').addEventListener('input', function(e) {
+    const phone = e.target.value;
+    if (!phone.match(/^2547\d{8}$/)) {
+        e.target.classList.add('is-invalid');
+    } else {
+        e.target.classList.remove('is-invalid');
+    }
+});
+</script>
+
+<style>
+.package-card {
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.package-card:hover {
+    transform: translateY(-5px);
+}
+
+.coin-balance {
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+    color: #000;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
