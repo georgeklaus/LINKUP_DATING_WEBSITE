@@ -3,6 +3,7 @@ import asyncio
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
+from datetime import timedelta
 from .models import ChatRoom, Message, ChatCharge
 from django.conf import settings
 
@@ -99,7 +100,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         recent_charge = ChatCharge.objects.filter(
             chat_room=room,
             user=self.user,
-            charged_at__gte=timezone.now() - timezone.timedelta(minutes=30)
+            charged_at__gte=timezone.now() - timedelta(minutes=30)
         ).exists()
         
         if not recent_charge:
