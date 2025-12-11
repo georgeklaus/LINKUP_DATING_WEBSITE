@@ -28,10 +28,6 @@ def chat_list(request):
             'unread_count': room.messages.filter(is_read=False).exclude(sender=request.user).count()
         })
     
-    context = {
-        'chat_rooms': rooms_with_last_message,
-    }
-    return render(request, 'chat/chat_list.html', context)
     # Also include user/profile update forms for templates that reuse this layout
     try:
         user_form = UserUpdateForm(instance=request.user)
