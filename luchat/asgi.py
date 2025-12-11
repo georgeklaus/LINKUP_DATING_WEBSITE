@@ -4,7 +4,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 import chat.routing
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'dating_app.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'luchat.settings')
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
