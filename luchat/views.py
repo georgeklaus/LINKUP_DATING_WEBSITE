@@ -36,6 +36,9 @@ def dashboard(request):
     posts = Post.objects.filter(user_id__in=compatible_user_ids).select_related(
         'user'
     ).prefetch_related('comments', 'likes', 'comments__user')[:20]
+    # mark whether the current user liked each post to avoid complex template logic
+    for post in posts:
+        post.is_liked = post.likes.filter(user=request.user).exists()
     
     # Get online users
     online_users = MatchFinder.get_online_users(request.user)

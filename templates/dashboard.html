@@ -148,9 +148,9 @@
 
                 <!-- Post Actions -->
                 <div class="d-flex justify-content-between border-top border-bottom py-2">
-                    <button class="btn btn-sm btn-outline-primary like-btn {% if user in post.likes.all.values_list                                    'user' %} %}active{% endif %}" 
+                    <button class="btn btn-sm btn-outline-primary like-btn {% if post.is_liked %}active{% endif %}" 
                             data-post-id="{{ post.id }}">
-                        <i class="fas fa-heart {% if user in post.likes.all.values_list 'user' flat=True %}text-danger{% endif %}"></i> 
+                        <i class="fas fa-heart {% if post.is_liked %}text-danger{% endif %}"></i>
                         Like
                     </button>
                     <button class="btn btn-sm btn-outline-secondary comment-toggle" data-post-id="{{ post.id }}">
