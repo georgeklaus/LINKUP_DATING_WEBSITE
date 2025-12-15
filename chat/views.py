@@ -9,6 +9,10 @@ from users.forms import UserUpdateForm, ProfileUpdateForm
 from matching.utils import MatchFinder
 from django.conf import settings
 import uuid
+from django.http import HttpResponseForbidden
+from django.views.decorators.csrf import csrf_exempt
+from math import ceil
+from types import SimpleNamespace
 
 @login_required
 def chat_list(request):
@@ -102,3 +106,101 @@ def get_chat_room_name(user1, user2):
     """Generate unique room name for two users"""
     user_ids = sorted([user1.id, user2.id])
     return f"chat_{user_ids[0]}_{user_ids[1]}"
+
+
+@login_required
+def chat_room_preview(request, username):
+    """Development-only view: render the `chat_room.html` template with sample messages
+    so you can preview the layout in the browser without full compatibility checks.
+    """
+    other_user = get_object_or_404(CustomUser, username=username)
+
+    # Create a couple of in-memory message-like objects for the template
+    now = timezone.now()
+    sample_messages = [
+        SimpleNamespace(sender=other_user, content='Hey, how are you?', timestamp=now),
+        SimpleNamespace(sender=request.user, content='I am good — testing the chat layout!', timestamp=now),
+    ]
+
+    context = {
+        'room_name': f'preview_{request.user.username}_{other_user.username}',
+        'other_user': other_user,
+        'messages': sample_messages,
+    }
+    return render(request, 'chat/chat_room.html', context)
+
+
+@login_required
+def video_call_room(request, room_name):
+    """Render the video call UI for an existing VideoCall identified by room_name.
+
+    Allows the caller or receiver to open the call page. In DEBUG mode the view
+    will allow access even if the VideoCall record is missing (useful for previews).
+    """
+    try:
+        video_call = VideoCall.objects.get(room_name=room_name)
+    except VideoCall.DoesNotExist:
+        if settings.DEBUG:
+            # Allow rendering the template with minimal context for local testing
+            other_user = request.user
+            context = {
+                'other_user': other_user,
+                'room_name': room_name,
+                'VIDEO_CALL_COST_PER_MIN': settings.VIDEO_CALL_COST_PER_MIN,
+            }
+            return render(request, 'chat/video_call.html', context)
+        return HttpResponseForbidden('Call not found')
+
+    # Ensure user is participant
+    if request.user != video_call.caller and request.user != video_call.receiver:
+        return HttpResponseForbidden('Not authorized')
+
+    other_user = video_call.receiver if request.user == video_call.caller else video_call.caller
+
+    context = {
+        'other_user': other_user,
+        'room_name': video_call.room_name,
+        'VIDEO_CALL_COST_PER_MIN': settings.VIDEO_CALL_COST_PER_MIN,
+    }
+    return render(request, 'chat/video_call.html', context)
+
+
+@csrf_exempt
+@login_required
+def end_video_call(request, room_name):
+    """Endpoint called by the client JS when the call ends.
+
+    Marks the VideoCall ended, computes duration and cost, deducts coins from
+    the caller (best-effort), and returns JSON with the result.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+    try:
+        video_call = VideoCall.objects.get(room_name=room_name, is_active=True)
+    except VideoCall.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Call not found or already ended'}, status=404)
+
+    now = timezone.now()
+    video_call.ended_at = now
+    duration_seconds = int((now - video_call.started_at).total_seconds())
+    video_call.duration = duration_seconds
+
+    minutes = ceil(duration_seconds / 60) if duration_seconds > 0 else 0
+    cost = minutes * settings.VIDEO_CALL_COST_PER_MIN
+    video_call.cost = cost
+    video_call.is_active = False
+    video_call.save()
+
+    # Deduct from caller's coins (best-effort)
+    caller = video_call.caller
+    deducted = 0
+    if caller.coins >= cost:
+        caller.coins -= cost
+        deducted = cost
+    else:
+        deducted = caller.coins
+        caller.coins = 0
+    caller.save()
+
+    return JsonResponse({'success': True, 'duration_seconds': duration_seconds, 'cost': cost, 'deducted': deducted})
