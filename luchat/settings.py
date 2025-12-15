@@ -115,3 +115,12 @@ MALE_REGISTRATION_BONUS = 30
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# MegaPay settings (loaded from .env via python-decouple)
+MEGAPAY_API_KEY = config('MEGAPAY_API_KEY', default='')
+MEGAPAY_BASE_URL = config('MEGAPAY_BASE_URL', default='')
+
+# During local development you may want to use the built-in MegaPay stub.
+USE_LOCAL_MEGAPAY_STUB = config('USE_LOCAL_MEGAPAY_STUB', default=True, cast=bool)
+if DEBUG and USE_LOCAL_MEGAPAY_STUB:
+    MEGAPAY_BASE_URL = config('LOCAL_MEGAPAY_STUB_URL', default='http://127.0.0.1:8000/payments/_megapay_stub')
