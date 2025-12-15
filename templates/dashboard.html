@@ -233,7 +233,7 @@
                 <a href="{% url 'users:search' %}" class="btn btn-outline-info btn-sm w-100 mb-2">
                     <i class="fas fa-users"></i> Search Users
                 </a>
-                <a href="{% url 'chat:chat_list' %}" class="btn btn-outline-success btn-sm w-100 mb-2">
+                <a id="my-messages-btn" href="{% url 'chat:chat_list' %}" class="btn btn-outline-success btn-sm w-100 mb-2">
                     <i class="fas fa-comments"></i> My Messages
                 </a>
                 <a href="{% url 'payments:buy_coins' %}" class="btn btn-outline-warning btn-sm w-100">
@@ -357,6 +357,23 @@ document.getElementById('postImage').addEventListener('change', function(e) {
 .comments-section {
     border-top: 1px solid #e9ecef;
     padding-top: 15px;
+}
+
+/* Make the My Messages button more prominent and harder to mis-click */
+#my-messages-btn {
+    position: relative; /* allow z-index */
+    z-index: 5; /* sit above nearby elements */
+    padding-top: .6rem;
+    padding-bottom: .6rem;
+    margin-top: 4px;
+}
+
+/* Increase touch target on small screens */
+@media (max-width: 576px) {
+    #my-messages-btn {
+        padding-top: .8rem;
+        padding-bottom: .8rem;
+    }
 }
 </style>
 {% endblock %}
