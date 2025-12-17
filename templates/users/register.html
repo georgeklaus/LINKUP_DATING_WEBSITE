@@ -1,12 +1,14 @@
 {% extends 'base.html' %}
+{% load static %}
 {% load crispy_forms_tags %}
 
 {% block title %}Register - LoveConnect{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow">
+<div class="register-hero" style="background: url('{% static "images/register-bg-1.jpg" %}') center/cover no-repeat fixed;">
+    <div class="row justify-content-center w-100">
+        <div class="col-md-8">
+                <div class="card shadow glass-card">
             <div class="card-header bg-success text-white">
                 <h4 class="mb-0"><i class="fas fa-user-plus"></i> Join LoveConnect Today!</h4>
             </div>
@@ -80,5 +82,6 @@
             </div>
         </div>
     </div>
+  </div>
 </div>
 {% endblock %}

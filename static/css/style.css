@@ -116,3 +116,71 @@
     60% { text-shadow: .25em 0 0 black, .5em 0 0 rgba(0,0,0,0); }
     80%, 100% { text-shadow: .25em 0 0 black, .5em 0 0 black; }
 }
+
+/* Register page hero background and glass card */
+
+.register-hero{
+    /* cover entire viewport so background fills the page */
+    min-height: 100vh;
+    display:flex;
+    align-items:center;
+    padding:36px 16px;
+    position:relative;
+    background-size: cover;
+    /* show more of the image vertically instead of aggressively zooming center */
+    background-position: center top;
+    background-repeat: no-repeat;
+    /* avoid fixed attachment which can cause heavy zooming/cropping in some browsers */
+    background-attachment: scroll;
+}
+
+/* subtle dark overlay with reduced opacity so image shows through more */
+.register-hero::before{
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.12);
+    pointer-events: none;
+}
+
+.glass-card{
+    /* more transparent so the background is visible, and minimal blur */
+    background: rgba(255,255,255,0.82);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.7);
+    backdrop-filter: blur(1px);
+    box-shadow: 0 10px 30px rgba(16,24,40,0.08);
+}
+
+/* On small screens show whole image without heavy cropping */
+@media (max-width: 600px){
+    .register-hero{background-size: contain; background-position: center top;}
+}
+
+@media (max-width: 576px){
+    .register-hero{padding:20px 12px}
+}
+
+/* Featured matches carousel */
+.featured-card .card-body{padding-bottom:8px}
+.featured-carousel{display:flex;gap:12px;overflow-x:auto;padding:6px 4px;scroll-behavior:smooth}
+.match-card{min-width:190px;max-width:220px;border-radius:12px;background:#fff;border:1px solid #eef2f6;overflow:hidden;box-shadow:0 6px 18px rgba(16,24,40,0.06);flex-shrink:0}
+.match-card .match-image img{width:100%;height:160px;object-fit:cover;display:block}
+.match-info{padding:10px}
+.match-actions{border-top:1px solid #f1f5f9}
+.btn-like{background:linear-gradient(90deg,var(--primary-color),#ff7aa2);color:#fff;border-radius:6px;padding:6px 10px}
+.btn-superlike{background:linear-gradient(90deg,#60a5fa,var(--secondary-color));color:#fff;border-radius:6px;padding:6px 10px}
+.match-pass{border-radius:6px;padding:6px 10px}
+.carousel-controls button{min-width:42px}
+
+@media (max-width: 576px){
+    .match-card{min-width:72%;}
+}
+
+/* Recent chats preview styles */
+.chat-preview{background:rgba(255,255,255,0.98);border:1px solid #f1f5f9}
+.chat-preview .text-truncate{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.quick-reply-btn{padding:6px 8px}
+
+/* small link */
+.small-link{color:var(--primary-color);text-decoration:none}

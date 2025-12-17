@@ -115,6 +115,9 @@ const configuration = {
     ]
 };
 
+// Signaling socket
+let signalingSocket;
+
 // DOM elements
 const localVideo = document.getElementById('local-video');
 const remoteVideo = document.getElementById('remote-video');
@@ -140,6 +143,129 @@ async function initializeMedia() {
         console.error('Error accessing media devices:', error);
         statusBadge.innerHTML = '<i class="fas fa-circle"></i> Media access failed';
         statusBadge.className = 'badge bg-danger';
+    }
+}
+
+function ensureSignaling() {
+    if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) return;
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    signalingSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/signaling/${roomName}/`);
+
+    signalingSocket.onopen = () => {
+        console.log('Signaling socket open');
+    };
+
+    signalingSocket.onmessage = async (ev) => {
+        try {
+            const data = JSON.parse(ev.data);
+            console.log('Signaling recv', data);
+            if (data.type === 'offer') {
+                await handleOffer(data);
+            } else if (data.type === 'answer') {
+                await handleAnswer(data);
+            } else if (data.type === 'candidate') {
+                await handleCandidate(data);
+            }
+        } catch (err) {
+            console.error('Invalid signaling message', err);
+        }
+    };
+
+    signalingSocket.onclose = () => {
+        console.log('Signaling socket closed');
+    };
+}
+
+function waitForSignalingOpen() {
+    if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Signaling open timeout')), 5000);
+        const handler = () => {
+            clearTimeout(timeout);
+            signalingSocket.removeEventListener('open', handler);
+            resolve();
+        };
+        if (!signalingSocket) {
+            reject(new Error('No signaling socket'));
+            return;
+        }
+        signalingSocket.addEventListener('open', handler);
+    });
+}
+
+function createPeerConnection() {
+    peerConnection = new RTCPeerConnection(configuration);
+    remoteStream = new MediaStream();
+    remoteVideo.srcObject = remoteStream;
+
+    peerConnection.ontrack = (event) => {
+        // Some browsers populate event.streams, others deliver track via event.track
+        if (event.streams && event.streams[0]) {
+            event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+        } else if (event.track) {
+            remoteStream.addTrack(event.track);
+        }
+        statusBadge.innerHTML = '<i class="fas fa-circle"></i> Connected';
+        statusBadge.className = 'badge bg-success';
+    };
+
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            signalingSocket.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+        }
+    };
+
+    peerConnection.oniceconnectionstatechange = () => {
+        console.log('ICE state:', peerConnection.iceConnectionState);
+        if (peerConnection.iceConnectionState === 'failed' || peerConnection.iceConnectionState === 'disconnected') {
+            statusBadge.innerHTML = '<i class="fas fa-circle"></i> Connection failed';
+            statusBadge.className = 'badge bg-danger';
+        }
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+        console.log('Connection state:', peerConnection.connectionState);
+        if (peerConnection.connectionState === 'connected') {
+            statusBadge.innerHTML = '<i class="fas fa-circle"></i> Connected';
+            statusBadge.className = 'badge bg-success';
+        } else if (peerConnection.connectionState === 'failed') {
+            statusBadge.innerHTML = '<i class="fas fa-circle"></i> Connection failed';
+            statusBadge.className = 'badge bg-danger';
+        }
+    };
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    }
+}
+
+async function handleOffer(data) {
+    ensureSignaling();
+    if (!localStream) await initializeMedia();
+    createPeerConnection();
+    const desc = { type: 'offer', sdp: data.sdp };
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(desc));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    signalingSocket.send(JSON.stringify({ type: 'answer', sdp: answer.sdp }));
+    // start timer when connected
+    startCallTimer();
+    startCallBtn.disabled = true;
+    endCallBtn.disabled = false;
+}
+
+async function handleAnswer(data) {
+    if (!peerConnection) return;
+    const desc = { type: 'answer', sdp: data.sdp };
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(desc));
+}
+
+async function handleCandidate(data) {
+    if (!peerConnection) return;
+    try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+    } catch (err) {
+        console.warn('Failed to add ICE candidate', err);
     }
 }
 
@@ -180,19 +306,20 @@ startCallBtn.addEventListener('click', async () => {
     try {
         statusBadge.innerHTML = '<i class="fas fa-circle"></i> Calling...';
         statusBadge.className = 'badge bg-warning';
-        
-        // Initialize WebRTC connection (simplified)
-        // In a real application, you would implement proper signaling and WebRTC
-        
+
+        // real WebRTC flow with signaling
+        ensureSignaling();
+        await waitForSignalingOpen();
+        if (!localStream) await initializeMedia();
+        createPeerConnection();
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        // send offer via signaling
+        signalingSocket.send(JSON.stringify({ type: 'offer', sdp: offer.sdp }));
+
         startCallTimer();
         startCallBtn.disabled = true;
         endCallBtn.disabled = false;
-        
-        // Simulate call connection
-        setTimeout(() => {
-            statusBadge.innerHTML = '<i class="fas fa-circle"></i> Connected';
-            statusBadge.className = 'badge bg-success';
-        }, 2000);
         
     } catch (error) {
         console.error('Error starting call:', error);
@@ -220,6 +347,18 @@ function endCall() {
     endCallBtn.disabled = true;
     statusBadge.innerHTML = '<i class="fas fa-circle"></i> Call ended';
     statusBadge.className = 'badge bg-secondary';
+
+    // Close peer connection and signaling
+    try {
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        if (signalingSocket) {
+            signalingSocket.close();
+            signalingSocket = null;
+        }
+    } catch (e) {}
     
     // Send call end to server
     fetch(`/chat/end-video-call/${roomName}/`, {

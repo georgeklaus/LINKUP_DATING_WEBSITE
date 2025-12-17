@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 from .models import ChatRoom, Message, VideoCall
@@ -15,6 +16,7 @@ from django.http import HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from math import ceil
 from types import SimpleNamespace
+from django.shortcuts import redirect
 
 @login_required
 def chat_list(request):
@@ -55,21 +57,22 @@ def chat_list(request):
 @login_required
 def chat_room(request, username):
     other_user = get_object_or_404(CustomUser, username=username)
-    
-    # Check if users can chat (compatible)
-    compatible_users = MatchFinder.get_compatible_users(request.user)
-    if other_user not in compatible_users:
-        messages.error(request, "You cannot chat with this user")
-        return redirect('dashboard')
-    
-    # Get or create chat room
+    # Allow opening an existing conversation even if matching rules have changed.
+    # Only enforce compatibility when attempting to create a new room.
     room_name = get_chat_room_name(request.user, other_user)
-    chat_room, created = ChatRoom.objects.get_or_create(name=room_name)
-    
-    if created:
+    try:
+        chat_room = ChatRoom.objects.get(name=room_name)
+        created = False
+    except ChatRoom.DoesNotExist:
+        # creating a new conversation requires compatibility
+        compatible_users = MatchFinder.get_compatible_users(request.user)
+        if other_user not in compatible_users:
+            messages.error(request, "You cannot chat with this user")
+            return redirect('dashboard')
+        chat_room = ChatRoom.objects.create(name=room_name)
         chat_room.participants.add(request.user, other_user)
     
-    messages = chat_room.messages.all().order_by('timestamp')[:50]
+    messages_qs = chat_room.messages.all().order_by('timestamp')[:50]
     
     # Mark messages as read
     chat_room.messages.filter(sender=other_user, is_read=False).update(is_read=True)
@@ -77,7 +80,7 @@ def chat_room(request, username):
     context = {
         'room_name': room_name,
         'other_user': other_user,
-        'messages': messages,
+        'messages': messages_qs,
     }
     return render(request, 'chat/chat_room.html', context)
 
@@ -127,6 +130,15 @@ def start_video_call(request, username):
                     'message_id': msg.id if msg else None,
                 }
             )
+            # also send an explicit signaling invite so chat clients can prompt
+            async_to_sync(channel_layer.group_send)(
+                f'chat_{chat_room.name}',
+                {
+                    'type': 'video_invite',
+                    'room_name': room_name,
+                    'from': request.user.username,
+                }
+            )
         except Exception:
             pass
     except Exception:
@@ -165,6 +177,92 @@ def chat_room_preview(request, username):
     }
     context['is_preview'] = True
     return render(request, 'chat/chat_room.html', context)
+
+
+@login_required
+def chat_overview(request):
+    """Render a combined view: left column = chat rooms list, right = selected conversation.
+    If a `username` GET param is provided, show that conversation; otherwise pick the most
+    recent chat. Falls back to `chat_list` when no rooms exist.
+    """
+    chat_rooms = ChatRoom.objects.filter(participants=request.user, is_active=True)
+    rooms_with_last_message = []
+    for room in chat_rooms:
+        last_message = room.messages.last()
+        other_participant = room.participants.exclude(id=request.user.id).first()
+        rooms_with_last_message.append({
+            'room': room,
+            'last_message': last_message,
+            'other_participant': other_participant,
+            'unread_count': room.messages.filter(is_read=False).exclude(sender=request.user).count()
+        })
+
+    # Allow rendering the overview page even when there are no chat rooms.
+    # Previously we redirected to `chat_list` — but the dashboard "See all messages"
+    # should open the combined two-column UI regardless of whether rooms exist.
+    if not rooms_with_last_message:
+        rooms_with_last_message = []
+
+    # determine selected other user
+    sel_username = request.GET.get('username')
+    selected_other = None
+    if sel_username:
+        try:
+            selected_other = CustomUser.objects.get(username=sel_username)
+        except CustomUser.DoesNotExist:
+            selected_other = None
+
+    if not selected_other and rooms_with_last_message:
+        selected_other = rooms_with_last_message[0]['other_participant']
+
+    if selected_other:
+        room_name = get_chat_room_name(request.user, selected_other)
+        chat_room, _ = ChatRoom.objects.get_or_create(name=room_name)
+        chat_room.participants.add(request.user, selected_other)
+        messages = chat_room.messages.all().order_by('timestamp')[:50]
+
+        # mark read
+        chat_room.messages.filter(sender=selected_other, is_read=False).update(is_read=True)
+    else:
+        # No selected conversation — render overview with empty conversation pane
+        room_name = ''
+        messages = []
+
+    context = {
+        'chat_rooms': rooms_with_last_message,
+        'other_user': selected_other,
+        'messages': messages,
+        'room_name': room_name,
+    }
+    return render(request, 'chat/chat_room.html', context)
+
+
+@login_required
+def messages_redirect(request):
+    """Redirect to the most recent conversation's chat_room if one exists,
+    otherwise send the user to the chat overview page.
+    This avoids attempting to open a self-chat which the `chat_room` view blocks.
+    """
+    # Find most recent chat room involving this user where the other participant
+    # is still compatible. This avoids redirecting into a `chat_room` view that
+    # will immediately error when compatibility rules block the conversation.
+    chat_rooms = ChatRoom.objects.filter(participants=request.user, is_active=True)
+    if chat_rooms.exists():
+        # determine compatibility set once
+        compatible_users = set(MatchFinder.get_compatible_users(request.user))
+        # sort rooms by last message timestamp (fallback to created_at)
+        rooms_with_last = sorted(
+            chat_rooms,
+            key=lambda r: (r.messages.last().timestamp if r.messages.exists() else r.created_at),
+            reverse=True,
+        )
+        for room in rooms_with_last:
+            other = room.participants.exclude(id=request.user.id).first()
+            if other and other in compatible_users:
+                return redirect('chat:chat_room', username=other.username)
+
+    # fallback to overview
+    return redirect('chat:chat_overview')
 
 
 @login_required

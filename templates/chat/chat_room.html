@@ -1,12 +1,41 @@
 {% extends 'base.html' %}
 
-{% block title %}Chat with {{ other_user.username }} - LoveConnect{% endblock %}
+{% block title %}{% if other_user %}Chat with {{ other_user.username }} - LoveConnect{% else %}Messages - LoveConnect{% endif %}{% endblock %}
 
 {% block content %}
 <div class="row">
+    {% if chat_rooms %}
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light">
+                <strong>Messages</strong>
+            </div>
+            <div class="list-group list-group-flush" style="max-height: 70vh; overflow-y: auto;">
+                {% for r in chat_rooms %}
+                {% with other=r.other_participant last=r.last_message %}
+                <a href="{% url 'chat:chat_overview' %}?username={{ other.username }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start {% if other_user and other.username == other_user.username %}active{% endif %}">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ other.profile_picture.url }}" class="rounded-circle me-2" width="40" height="40" style="object-fit: cover;">
+                        <div>
+                            <div class="fw-bold small">{{ other.username }}</div>
+                            <div class="small text-muted text-truncate">{% if last %}{{ last.content|truncatechars:50 }}{% else %}No messages yet{% endif %}</div>
+                        </div>
+                    </div>
+                    <small class="text-muted">{% if last %}{{ last.timestamp|timesince }} ago{% endif %}</small>
+                </a>
+                {% endwith %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+    {% else %}
     <div class="col-md-8 mx-auto">
         <div class="card shadow-sm">
+    {% endif %}
             <!-- Chat Header -->
+            {% if other_user %}
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
                     <img src="{{ other_user.profile_picture.url }}" class="rounded-circle me-3" width="40" height="40" style="object-fit: cover;">
@@ -30,8 +59,14 @@
                     </a>
                 </div>
             </div>
+            {% else %}
+            <div class="card-header bg-primary text-white">
+                <strong>Messages</strong>
+            </div>
+            {% endif %}
 
             <!-- Chat Messages -->
+            {% if other_user %}
             <div class="card-body" id="chat-messages" style="height: 400px; overflow-y: auto; background: #f8f9fa;">
                 {% for message in messages %}
                 <div class="d-flex mb-3 {% if message.sender == user %}justify-content-end{% endif %}">
@@ -71,6 +106,13 @@
                     This chat session costs {{ CHAT_COST }} coins. You have <strong>{{ user.coins }}</strong> coins remaining.
                 </small>
             </div>
+            {% else %}
+            <div class="card-body text-center py-5">
+                <i class="fas fa-comments fa-3x mb-3"></i>
+                <p class="mb-2">No conversation selected.</p>
+                <p class="text-muted">Select a conversation from the left or start a new chat from a profile.</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -80,15 +122,12 @@
 
 {% block scripts %}
 <script>
-const roomName = JSON.parse(document.getElementById('room-name').textContent);
-// Only open a WebSocket when not in preview mode
-{% if not is_preview %}
-const chatSocket = new WebSocket(
-    'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
-);
-{% else %}
-const chatSocket = null;
-{% endif %}
+const roomName = JSON.parse(document.getElementById('room-name').textContent || '""');
+// Only open a WebSocket when a room is selected
+let chatSocket = null;
+if (roomName) {
+    chatSocket = new WebSocket('ws://' + window.location.host + '/ws/chat/' + roomName + '/');
+}
 
 const chatMessages = document.getElementById('chat-messages');
 const chatMessageInput = document.getElementById('chat-message-input');
@@ -131,19 +170,32 @@ function addMessage(message, isCurrentUser, senderName) {
     scrollToBottom();
 }
 
-// Handle received messages
-{% if not is_preview %}
-chatSocket.onmessage = function(e) {
-    const data = JSON.parse(e.data);
+// Handle received messages (only if socket is open)
+if (chatSocket) {
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
 
-    if (data.type === 'chat_message') {
-        const isCurrentUser = data.sender_id === {{ user.id }};
-        addMessage(data.message, isCurrentUser, data.sender || '');
-    } else if (data.type === 'error') {
-        alert(data.message);
-    }
-};
-{% endif %}
+        if (data.type === 'chat_message') {
+            const isCurrentUser = data.sender_id === {{ user.id }};
+            addMessage(data.message, isCurrentUser, data.sender || '');
+        } else if (data.type === 'video_invite') {
+            // incoming video call invite
+            if (data.from && data.from !== '{{ user.username }}') {
+                const accept = confirm(data.from + ' is calling you. Accept call?');
+                if (accept && data.room_name) {
+                    window.open(`/chat/video-call-room/${data.room_name}/`, '_blank');
+                }
+            }
+        } else if (data.type === 'error') {
+            alert(data.message);
+        }
+    };
+
+    // Handle connection close
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+}
 
 // Handle connection close
 chatSocket.onclose = function(e) {
@@ -160,7 +212,7 @@ chatMessageInput.onkeyup = function(e) {
 
 chatMessageSubmit.onclick = function(e) {
     const message = chatMessageInput.value.trim();
-    if (message) {
+    if (message && chatSocket) {
         chatSocket.send(JSON.stringify({
             'message': message,
             'type': 'chat_message'
