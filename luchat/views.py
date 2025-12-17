@@ -5,6 +5,9 @@ from posts.models import Post
 from matching.utils import MatchFinder
 from users.forms import CustomUserCreationForm
 from django.contrib.auth import login
+from chat.models import ChatRoom
+from django.db.models import Max
+from django.urls import reverse
 
 def home(request):
     if request.user.is_authenticated:
@@ -52,4 +55,20 @@ def dashboard(request):
         'suggested_matches': suggested_matches,
         'compatible_users': compatible_users[:10],
     }
+
+    # Determine where 'My Messages' should go: default to chat list, but
+    # if the user has a recent chat room, link directly to that room.
+    last_room = ChatRoom.objects.filter(participants=request.user).annotate(
+        last_msg=Max('messages__timestamp')
+    ).order_by('-last_msg').first()
+
+    if last_room:
+        other = last_room.participants.exclude(id=request.user.id).first()
+        if other:
+            context['my_messages_link'] = reverse('chat:chat_room', args=[other.username])
+        else:
+            context['my_messages_link'] = reverse('chat:chat_list')
+    else:
+        context['my_messages_link'] = reverse('chat:chat_list')
+
     return render(request, 'dashboard.html', context)

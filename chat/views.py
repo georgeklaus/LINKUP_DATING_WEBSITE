@@ -9,6 +9,8 @@ from users.forms import UserUpdateForm, ProfileUpdateForm
 from matching.utils import MatchFinder
 from django.conf import settings
 import uuid
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.http import HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from math import ceil
@@ -95,6 +97,40 @@ def start_video_call(request, username):
         room_name=room_name,
         is_active=True
     )
+
+    # Notify chat room participants that a video call was started by creating
+    # a Message in the corresponding chat room and broadcasting it via channels.
+    try:
+        conv_name = get_chat_room_name(request.user, other_user)
+        chat_room, _ = ChatRoom.objects.get_or_create(name=conv_name)
+        # ensure participants exist on the room
+        chat_room.participants.add(request.user, other_user)
+
+        call_msg = f"{request.user.username} started a video call → {room_name}"
+        msg = None
+        try:
+            msg = Message.objects.create(room=chat_room, sender=request.user, content=call_msg)
+        except Exception:
+            msg = None
+
+        # broadcast to websocket group
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'chat_{chat_room.name}',
+                {
+                    'type': 'chat_message',
+                    'message': call_msg,
+                    'sender': request.user.username,
+                    'sender_id': request.user.id,
+                    'timestamp': msg.timestamp.isoformat() if msg else '',
+                    'message_id': msg.id if msg else None,
+                }
+            )
+        except Exception:
+            pass
+    except Exception:
+        pass
     
     return JsonResponse({
         'success': True,
@@ -127,6 +163,7 @@ def chat_room_preview(request, username):
         'other_user': other_user,
         'messages': sample_messages,
     }
+    context['is_preview'] = True
     return render(request, 'chat/chat_room.html', context)
 
 
