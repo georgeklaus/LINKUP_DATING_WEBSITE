@@ -7,6 +7,11 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Post, Comment, Like
 from .forms import PostForm, CommentForm
 from matching.utils import MatchFinder
+from django.template.loader import render_to_string
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from django.conf import settings
+from django.utils import timezone
 
 @login_required
 def create_post(request):
@@ -17,6 +22,31 @@ def create_post(request):
             post.user = request.user
             post.save()
             messages.success(request, 'Post created successfully!')
+
+            # Render the single-post partial for immediate AJAX response
+            html = render_to_string('posts/_post_card.html', {
+                'post': post,
+                'user': request.user,
+                'CHAT_COST': getattr(settings, 'CHAT_COST', 1),
+            })
+
+            # Broadcast to all connected clients via channel layer
+            try:
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)('posts', {
+                    'type': 'new.post',
+                    'html': html,
+                    'post_id': post.id,
+                })
+            except Exception:
+                # non-fatal if channel layer isn't configured for async send
+                pass
+
+            # If client expects JSON (AJAX), return the rendered HTML
+            accept = request.headers.get('Accept', '')
+            if 'application/json' in accept or request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'html': html, 'post_id': post.id})
+
             return redirect('dashboard')
     else:
         form = PostForm()
@@ -33,10 +63,24 @@ def like_post(request, post_id):
         liked = False
     else:
         liked = True
-    
+    likes_count = post.likes.count()
+
+    # Broadcast like update to connected clients
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)('posts', {
+            'type': 'post.like',
+            'post_id': post.id,
+            'likes_count': likes_count,
+            'user': request.user.username,
+            'liked': liked,
+        })
+    except Exception:
+        pass
+
     return JsonResponse({
         'liked': liked,
-        'likes_count': post.likes.count()
+        'likes_count': likes_count
     })
 
 @login_required
@@ -50,16 +94,27 @@ def add_comment(request, post_id):
         comment.post = post
         comment.user = request.user
         comment.save()
-        
-        return JsonResponse({
-            'success': True,
-            'comment': {
-                'user': comment.user.username,
-                'content': comment.content,
-                'created_at': comment.created_at.strftime('%b %d, %Y %I:%M %p'),
-                'profile_picture': comment.user.profile_picture.url if comment.user.profile_picture else '/media/profiles/default.png'
-            }
-        })
+        # Prepare comment payload
+        comment_payload = {
+            'id': comment.id,
+            'user': comment.user.username,
+            'content': comment.content,
+            'created_at': comment.created_at.strftime('%b %d, %Y %I:%M %p'),
+            'profile_picture': comment.user.profile_picture.url if comment.user.profile_picture else '/media/profiles/default.png'
+        }
+
+        # Broadcast comment to clients
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)('posts', {
+                'type': 'post.comment',
+                'post_id': post.id,
+                'comment': comment_payload,
+            })
+        except Exception:
+            pass
+
+        return JsonResponse({'success': True, 'comment': comment_payload})
     
     return JsonResponse({'success': False, 'errors': form.errors})
 

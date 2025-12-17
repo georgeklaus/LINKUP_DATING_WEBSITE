@@ -7,5 +7,6 @@ urlpatterns = [
     path('discover/', views.discover, name='discover'),
     path('like/<str:username>/', views.like_user, name='like_user'),
     path('dislike/<str:username>/', views.dislike_user, name='dislike_user'),
+    path('superlike/<str:username>/', views.superlike_user, name='superlike_user'),
     path('matches/', views.matches_list, name='matches_list'),
 ]

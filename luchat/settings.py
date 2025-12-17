@@ -54,6 +54,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'luchat.context_processors.global_unread_count',
             ],
         },
     },
@@ -71,8 +72,12 @@ DATABASES = {
 ASGI_APPLICATION = 'luchat.asgi.application'  # Changed from 'dating_app.asgi.application'
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-    }
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            # Default: local Redis on port 6379
+            'hosts': [config('REDIS_URL', default='redis://127.0.0.1:6379')],
+        },
+    },
 }
 
 # Custom User Model

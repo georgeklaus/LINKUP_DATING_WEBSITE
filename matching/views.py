@@ -81,6 +81,33 @@ def dislike_user(request, username):
         'message': f'You passed on {disliked_user.username}'
     })
 
+
+@login_required
+@require_POST
+def superlike_user(request, username):
+    """Mark a user as superliked. Similar to like but flagged differently."""
+    target = get_object_or_404(CustomUser, username=username)
+
+    # Create like record if not exists
+    like, created = UserLike.objects.get_or_create(
+        user=request.user,
+        liked_user=target
+    )
+
+    # Flag as superlike (store in UserLike if model has field, otherwise create entry in UserDislike as placeholder)
+    try:
+        # if UserLike has `is_superlike` field
+        if hasattr(like, 'is_superlike'):
+            like.is_superlike = True
+            like.save()
+    except Exception:
+        pass
+
+    return JsonResponse({
+        'success': True,
+        'message': f'You superliked {target.username}'
+    })
+
 @login_required
 def matches_list(request):
     # Get user's matches

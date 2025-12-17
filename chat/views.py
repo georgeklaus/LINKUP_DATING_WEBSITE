@@ -80,7 +80,7 @@ def chat_room(request, username):
     context = {
         'room_name': room_name,
         'other_user': other_user,
-        'messages': messages_qs,
+        'chat_messages': messages_qs,
     }
     return render(request, 'chat/chat_room.html', context)
 
@@ -173,7 +173,7 @@ def chat_room_preview(request, username):
     context = {
         'room_name': f'preview_{request.user.username}_{other_user.username}',
         'other_user': other_user,
-        'messages': sample_messages,
+        'chat_messages': sample_messages,
     }
     context['is_preview'] = True
     return render(request, 'chat/chat_room.html', context)
@@ -219,19 +219,19 @@ def chat_overview(request):
         room_name = get_chat_room_name(request.user, selected_other)
         chat_room, _ = ChatRoom.objects.get_or_create(name=room_name)
         chat_room.participants.add(request.user, selected_other)
-        messages = chat_room.messages.all().order_by('timestamp')[:50]
+        chat_messages = chat_room.messages.all().order_by('timestamp')[:50]
 
         # mark read
         chat_room.messages.filter(sender=selected_other, is_read=False).update(is_read=True)
     else:
         # No selected conversation — render overview with empty conversation pane
         room_name = ''
-        messages = []
+        chat_messages = []
 
     context = {
         'chat_rooms': rooms_with_last_message,
         'other_user': selected_other,
-        'messages': messages,
+        'chat_messages': chat_messages,
         'room_name': room_name,
     }
     return render(request, 'chat/chat_room.html', context)

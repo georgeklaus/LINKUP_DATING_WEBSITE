@@ -7,6 +7,9 @@ from datetime import timedelta
 from .models import ChatRoom, Message, ChatCharge
 from django.conf import settings
 from .models import VideoCall
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -64,6 +67,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'message_id': message.id
                     }
                 )
+                # Notify other participants about updated unread counts
+                await self.notify_unread_counts(message)
             else:
                 # Notify user about insufficient coins
                 await self.send(text_data=json.dumps({
@@ -131,6 +136,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.user.last_activity = timezone.now()
         self.user.save()
 
+    async def notify_unread_counts(self, message):
+        """Compute unread counts for other participants and push to their notification groups."""
+        counts = await self.get_unread_counts_for_recipients(message.id)
+        for recipient_id, count in counts.items():
+            group_name = f'notifications_{recipient_id}'
+            await self.channel_layer.group_send(
+                group_name,
+                {
+                    'type': 'unread.count',
+                    'count': count
+                }
+            )
+
+    @database_sync_to_async
+    def get_unread_counts_for_recipients(self, message_id):
+        try:
+            msg = Message.objects.get(id=message_id)
+        except Message.DoesNotExist:
+            return {}
+
+        room = msg.room
+        recipients = room.participants.exclude(id=msg.sender.id)
+        results = {}
+        for r in recipients:
+            c = Message.objects.filter(room__participants=r, is_read=False).exclude(sender=r).count()
+            results[r.id] = c
+        return results
+
 
 class SignalingConsumer(AsyncWebsocketConsumer):
     """Simple signaling channel for video calls.
@@ -163,9 +196,11 @@ class SignalingConsumer(AsyncWebsocketConsumer):
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
+        logger.info('Signaling connect: user=%s room=%s channel=%s', self.user.username, self.room_name, self.channel_name)
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        logger.info('Signaling disconnect: user=%s room=%s', getattr(self.user, 'username', None), self.room_name)
 
     async def receive(self, text_data=None, bytes_data=None):
         # Relay incoming JSON to group; include sender username
@@ -177,6 +212,7 @@ class SignalingConsumer(AsyncWebsocketConsumer):
         # Add sender metadata
         payload.setdefault('sender', self.user.username)
 
+        logger.debug('Signaling received from %s in %s: %s', self.user.username, self.room_name, payload)
         await self.channel_layer.group_send(
             self.group_name,
             {
@@ -188,3 +224,83 @@ class SignalingConsumer(AsyncWebsocketConsumer):
     async def signal_message(self, event):
         # send the message payload to WS clients
         await self.send(text_data=json.dumps(event['message']))
+
+
+class NotificationConsumer(AsyncWebsocketConsumer):
+    """Per-user notification channel for unread counts and other alerts.
+
+    Clients should connect to `/ws/notifications/` and will join a group specific
+    to their user id: `notifications_<user_id>`.
+    """
+
+    async def connect(self):
+        self.user = self.scope['user']
+        if self.user.is_anonymous:
+            await self.close()
+            return
+
+        self.group_name = f'notifications_{self.user.id}'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data=None, bytes_data=None):
+        # No incoming messages expected for now
+        return
+
+    async def unread_count(self, event):
+        # Send unread count update to client
+        await self.send(text_data=json.dumps({
+            'type': 'unread_count',
+            'count': event.get('count', 0)
+        }))
+
+
+class PostsConsumer(AsyncWebsocketConsumer):
+    """Broadcasts newly created posts to connected clients.
+
+    Clients should connect to `/ws/posts/` and will receive messages of
+    type `new_post` with keys `html` and `post_id`.
+    """
+
+    async def connect(self):
+        self.user = self.scope.get('user')
+        # allow anonymous viewers to receive public posts as well
+        self.group_name = 'posts'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data=None, bytes_data=None):
+        # No incoming messages expected here
+        return
+
+    async def new_post(self, event):
+        # Relay the post HTML to the client
+        await self.send(text_data=json.dumps({
+            'type': 'new_post',
+            'html': event.get('html'),
+            'post_id': event.get('post_id')
+        }))
+
+    async def post_like(self, event):
+        # Relay like update
+        await self.send(text_data=json.dumps({
+            'type': 'post_like',
+            'post_id': event.get('post_id'),
+            'likes_count': event.get('likes_count'),
+            'user': event.get('user'),
+            'liked': event.get('liked')
+        }))
+
+    async def post_comment(self, event):
+        # Relay comment payload
+        await self.send(text_data=json.dumps({
+            'type': 'post_comment',
+            'post_id': event.get('post_id'),
+            'comment': event.get('comment')
+        }))

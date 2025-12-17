@@ -6,59 +6,103 @@
     <!-- Left Sidebar - Online Users -->
     <div class="col-md-3">
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white">
-                <h6 class="mb-0"><i class="fas fa-circle text-success"></i> Online Now ({{ online_users.count }})</h6>
-            </div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                {% for user in online_users %}
-                <div class="d-flex align-items-center mb-3 p-2 rounded hover-bg">
-                    <img src="{{ user.profile_picture.url }}" class="rounded-circle me-2" width="45" height="45" style="object-fit: cover;">
-                    <div class="flex-grow-1">
-                        <a href="{% url 'users:profile_view' user.username %}" class="text-decoration-none fw-bold text-dark">
-                            {{ user.username }}
-                        </a>
-                        <small class="d-block text-success">
-                            <span class="online-indicator"></span> Online
-                        </small>
-                        <div class="mt-1">
-                            <a href="{% url 'chat:chat_room' user.username %}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-comment"></i> Chat
-                            </a>
-                        </div>
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0"><i class="fas fa-circle text-success"></i> Online Now</h6>
+                    <small class="text-white-50">Compatible: <strong>{{ online_users.count }}</strong> • All: <strong>{{ all_online.count }}</strong></small>
+                </div>
+                <div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Online toggle">
+                        <button id="show-compatible" class="btn btn-light active">Compatible</button>
+                        <button id="show-all" class="btn btn-light">All</button>
                     </div>
                 </div>
-                {% empty %}
-                <p class="text-muted text-center">No online users at the moment</p>
-                {% endfor %}
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="compatible-list">
+                    {% for user in online_users %}
+                    <div class="d-flex align-items-center mb-3 p-2 rounded hover-bg">
+                        <img src="{{ user.profile_picture.url }}" class="rounded-circle me-2" width="45" height="45" style="object-fit: cover;">
+                        <div class="flex-grow-1">
+                            <a href="{% url 'users:profile_view' user.username %}" class="text-decoration-none fw-bold text-dark">
+                                {{ user.username }}
+                            </a>
+                            <small class="d-block text-success">
+                                <span class="online-indicator"></span> Online
+                            </small>
+                            <div class="mt-1">
+                                <a href="{% url 'chat:chat_room' user.username %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-comment"></i> Chat
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">No compatible users online right now.</p>
+                    {% endfor %}
+                </div>
+
+                <div id="all-list" style="display:none;">
+                    {% for user in all_online %}
+                    <div class="d-flex align-items-center mb-3 p-2 rounded hover-bg">
+                        <img src="{{ user.profile_picture.url }}" class="rounded-circle me-2" width="45" height="45" style="object-fit: cover;">
+                        <div class="flex-grow-1">
+                            <a href="{% url 'users:profile_view' user.username %}" class="text-decoration-none fw-bold text-dark">
+                                {{ user.username }}
+                            </a>
+                            <small class="d-block text-success">
+                                <span class="online-indicator"></span> Online
+                            </small>
+                            <div class="mt-1">
+                                <a href="{% url 'chat:chat_room' user.username %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-comment"></i> Chat
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">No users are currently online.</p>
+                    {% endfor %}
+                </div>
             </div>
         </div>
 
-        <!-- Suggested Matches -->
+        <!-- Suggested Matches (interactive cards) -->
         <div class="card shadow-sm">
-            <div class="card-header bg-info text-white">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="fas fa-users"></i> Suggested Matches</h6>
+                <small class="text-white-50">Showing up to {{ suggested_matches|length }} matches</small>
             </div>
             <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                {% for user in suggested_matches %}
-                <div class="d-flex align-items-center mb-3 p-2 rounded hover-bg">
-                    <img src="{{ user.profile_picture.url }}" class="rounded-circle me-2" width="45" height="45" style="object-fit: cover;">
-                    <div class="flex-grow-1">
-                        <a href="{% url 'users:profile_view' user.username %}" class="text-decoration-none fw-bold text-dark">
-                            {{ user.username }}
-                        </a>
-                        <small class="d-block text-muted">
-                            {{ user.get_gender_display }}, {{ user.orientation }}
-                        </small>
-                        <div class="mt-1">
-                            <a href="{% url 'chat:chat_room' user.username %}" class="btn btn-sm btn-primary">
-                                <i class="fas fa-comment"></i> Chat
-                            </a>
+                <div class="d-flex flex-column gap-2">
+                    {% for su in suggested_matches %}
+                    <div class="suggest-card d-flex align-items-center p-2 rounded shadow-sm" data-username="{{ su.username }}">
+                        <img src="{{ su.profile_picture.url }}" class="rounded-circle me-3" width="54" height="54" style="object-fit: cover;">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <a href="{% url 'users:profile_view' su.username %}" class="fw-bold text-dark small">{{ su.username }}</a>
+                                    <div class="small text-muted">{{ su.get_gender_display }}, {{ su.orientation }}</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="small text-success mb-1">{% if su.is_online %}<span class="online-indicator"></span> Online{% else %}<small class="text-muted">Offline</small>{% endif %}</div>
+                                    <div class="small text-muted">💖 {{ su.compatibility_score|default:'--' }}%</div>
+                                </div>
+                            </div>
+                            <div class="match-preview small text-muted mt-1 text-truncate">{{ su.bio|default:'No bio available' }}</div>
+                        </div>
+                        <div class="d-flex flex-column align-items-end ms-3">
+                            <div class="btn-group-vertical" role="group">
+                                <button class="btn btn-sm btn-outline-danger btn-pass" title="Pass" data-username="{{ su.username }}"><i class="fas fa-times"></i></button>
+                                <button class="btn btn-sm btn-outline-primary btn-like" title="Like" data-username="{{ su.username }}"><i class="fas fa-heart"></i></button>
+                                <button class="btn btn-sm btn-warning btn-super" title="Superlike" data-username="{{ su.username }}"><i class="fas fa-star"></i></button>
+                            </div>
                         </div>
                     </div>
+                    {% empty %}
+                    <p class="text-muted text-center">No suggested matches</p>
+                    {% endfor %}
                 </div>
-                {% empty %}
-                <p class="text-muted text-center">No suggested matches</p>
-                {% endfor %}
             </div>
         </div>
     </div>
@@ -107,7 +151,7 @@
                     </div>
                 </div>
                 
-                <form method="post" action="{% url 'posts:create_post' %}" enctype="multipart/form-data">
+                <form id="create-post-form" method="post" action="{% url 'posts:create_post' %}" enctype="multipart/form-data">
                     {% csrf_token %}
                     <textarea name="content" class="form-control mb-3" placeholder="Share something with your matches..." rows="3" required></textarea>
                     
@@ -128,108 +172,19 @@
         </div>
 
         <!-- Posts Feed -->
+        <div id="posts-feed">
         {% for post in posts %}
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <!-- Post Header -->
-                <div class="d-flex align-items-center mb-3">
-                    <img src="{{ post.user.profile_picture.url }}" class="rounded-circle me-3" width="45" height="45" style="object-fit: cover;">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-0">
-                            <a href="{% url 'users:profile_view' post.user.username %}" class="text-decoration-none text-dark">
-                                {{ post.user.username }}
-                            </a>
-                        </h6>
-                        <small class="text-muted">{{ post.created_at|timesince }} ago</small>
-                    </div>
-                    {% if post.user == user %}
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-ellipsis-h"></i>
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <form method="post" action="{% url 'posts:delete_post' post.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Are you sure you want to delete this post?')">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-                
-                <!-- Post Content -->
-                <p class="card-text">{{ post.content }}</p>
-                
-                <!-- Post Image -->
-                {% if post.image %}
-                <div class="mb-3">
-                    <img src="{{ post.image.url }}" class="img-fluid rounded post-image w-100" alt="Post image">
-                </div>
-                {% endif %}
-
-                <!-- Post Stats -->
-                <div class="d-flex justify-content-between text-muted small mb-3">
-                    <span>{{ post.likes.count }} likes</span>
-                    <span>{{ post.comments.count }} comments</span>
-                </div>
-
-                <!-- Post Actions -->
-                <div class="d-flex justify-content-between border-top border-bottom py-2">
-                    <button class="btn btn-sm btn-outline-primary like-btn {% if post.is_liked %}active{% endif %}" 
-                            data-post-id="{{ post.id }}">
-                        <i class="fas fa-heart {% if post.is_liked %}text-danger{% endif %}"></i>
-                        Like
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary comment-toggle" data-post-id="{{ post.id }}">
-                        <i class="fas fa-comment"></i> Comment
-                    </button>
-                    <a href="{% url 'chat:chat_room' post.user.username %}" class="btn btn-sm btn-outline-success">
-                        <i class="fas fa-comments"></i> Chat ({{ CHAT_COST }} coins)
-                    </a>
-                </div>
-
-                <!-- Comments Section -->
-                <div class="comments-section mt-3" id="comments-{{ post.id }}" style="display: none;">
-                    <!-- Existing Comments -->
-                    {% for comment in post.comments.all|slice:":5" %}
-                    <div class="d-flex align-items-start mb-2">
-                        <img src="{{ comment.user.profile_picture.url }}" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
-                        <div class="flex-grow-1">
-                            <div class="bg-light rounded p-2">
-                                <strong class="small">{{ comment.user.username }}</strong>
-                                <p class="mb-0 small">{{ comment.content }}</p>
-                            </div>
-                            <small class="text-muted">{{ comment.created_at|timesince }} ago</small>
-                        </div>
-                    </div>
-                    {% endfor %}
-
-                    <!-- Add Comment Form -->
-                    <form class="add-comment-form mt-2" data-post-id="{{ post.id }}">
-                        {% csrf_token %}
-                        <div class="input-group">
-                            <input type="text" class="form-control form-control-sm" placeholder="Write a comment..." required>
-                            <button type="submit" class="btn btn-primary btn-sm">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+            {% include 'posts/_post_card.html' with post=post user=user CHAT_COST=CHAT_COST %}
         {% empty %}
-        <div class="card shadow-sm">
-            <div class="card-body text-center py-5">
-                <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
-                <h5>No posts yet</h5>
-                <p class="text-muted">Be the first to post and start conversations!</p>
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
+                    <h5>No posts yet</h5>
+                    <p class="text-muted">Be the first to post and start conversations!</p>
+                </div>
             </div>
-        </div>
         {% endfor %}
+        </div>
     </div>
 
     <!-- Right Sidebar - Quick Actions -->
@@ -245,11 +200,16 @@
                     <div class="d-flex align-items-start chat-preview p-2 rounded mb-2">
                         <img src="{{ chat.other_user.profile_picture.url }}" class="rounded-circle me-2" width="44" height="44" style="object-fit:cover">
                         <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <a href="{% url 'chat:chat_room' chat.other_user.username %}" class="text-dark fw-bold small">{{ chat.other_user.username }}</a>
-                                <small class="text-muted">{{ chat.last_message.created_at|timesince }} ago</small>
+                                <div class="d-flex align-items-center gap-2">
+                                    {% if chat.unread_count and chat.unread_count > 0 %}
+                                    <span class="badge bg-danger">{{ chat.unread_count }}</span>
+                                    {% endif %}
+                                    <small class="text-muted">{% if chat.last_message %}{{ chat.last_message.timestamp|timesince }} ago{% endif %}</small>
+                                </div>
                             </div>
-                            <div class="small text-muted text-truncate">{{ chat.last_message.preview|default:chat.last_message.content }}</div>
+                            <div class="small text-muted text-truncate">{{ chat.preview|default:chat.last_message.content }}</div>
                             <div class="mt-1 d-flex gap-2">
                                 <button class="btn btn-sm btn-outline-primary quick-reply-btn" data-chat-id="{{ chat.id }}">Reply</button>
                                 <a href="{% url 'chat:chat_room' chat.other_user.username %}" class="btn btn-sm btn-outline-success">Open</a>
@@ -353,7 +313,7 @@ document.querySelectorAll('.add-comment-form').forEach(form => {
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         const postId = this.dataset.postId;
-        const commentInput = this.querySelector('input');
+        const commentInput = this.querySelector('input[type="text"]');
         const commentText = commentInput.value.trim();
         
         if (commentText) {
@@ -459,11 +419,202 @@ document.getElementById('postImage').addEventListener('change', function(e) {
 })();
 </script>
 
+<script>
+// Toggle compatible / all online lists
+document.addEventListener('DOMContentLoaded', function(){
+    const btnCompatible = document.getElementById('show-compatible');
+    const btnAll = document.getElementById('show-all');
+    const compList = document.getElementById('compatible-list');
+    const allList = document.getElementById('all-list');
+
+    if (!btnCompatible || !btnAll) return;
+
+    btnCompatible.addEventListener('click', function(){
+        btnCompatible.classList.add('active');
+        btnAll.classList.remove('active');
+        compList.style.display = '';
+        allList.style.display = 'none';
+    });
+
+    btnAll.addEventListener('click', function(){
+        btnAll.classList.add('active');
+        btnCompatible.classList.remove('active');
+        compList.style.display = 'none';
+        allList.style.display = '';
+    });
+});
+</script>
+
+<script>
+// AJAX handlers for suggested matches actions (like/pass/superlike)
+(function(){
+    const csrftoken = '{{ csrf_token }}';
+
+    function postAction(url){
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Accept': 'application/json'
+            }
+        }).then(r=>r.json());
+    }
+
+    function removeCard(button){
+        const card = button.closest('.suggest-card');
+        if(!card) return;
+        card.style.transition = 'opacity .25s, transform .25s';
+        card.style.opacity = 0;
+        card.style.transform = 'scale(.98) translateX(-10px)';
+        setTimeout(()=>card.remove(), 300);
+    }
+
+    document.addEventListener('click', function(e){
+        const pass = e.target.closest('.btn-pass');
+        const like = e.target.closest('.btn-like');
+        const superbtn = e.target.closest('.btn-super');
+
+        if(pass){
+            const username = pass.dataset.username;
+            postAction(`/matching/dislike/${username}/`).then(res=>{
+                if(res.success){ removeCard(pass); }
+            }).catch(()=>{/* ignore */});
+            return;
+        }
+
+        if(like){
+            const username = like.dataset.username;
+            postAction(`/matching/like/${username}/`).then(res=>{
+                if(res.success){
+                    // show small feedback then remove
+                    like.classList.add('btn-success');
+                    removeCard(like);
+                }
+            }).catch(()=>{});
+            return;
+        }
+
+        if(superbtn){
+            const username = superbtn.dataset.username;
+            postAction(`/matching/superlike/${username}/`).then(res=>{
+                if(res.success){
+                    superbtn.classList.add('btn-warning');
+                    removeCard(superbtn);
+                }
+            }).catch(()=>{});
+            return;
+        }
+    });
+})();
+</script>
+
+<script>
+// AJAX submit for create-post and Posts websocket listener
+(function(){
+    const form = document.getElementById('create-post-form');
+    if(!form) return;
+    const csrftoken = '{{ csrf_token }}';
+    const feed = document.getElementById('posts-feed');
+    const seen = new Set();
+
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Accept': 'application/json'
+            },
+            body: fd
+        }).then(r=>r.json()).then(data=>{
+            if(data && data.success && data.html){
+                // prepend rendered card
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = data.html;
+                const card = wrapper.firstElementChild;
+                if(card){
+                    const pid = data.post_id;
+                    if(!document.querySelector(`[data-post-id="${pid}"]`)){
+                        feed.prepend(card);
+                    }
+                    seen.add(String(pid));
+                    form.reset();
+                    const imageName = document.getElementById('imageName'); if(imageName) imageName.textContent = '';
+                }
+            }
+        }).catch(err=>{ console.error('Post submit error', err); });
+    });
+
+    // Posts websocket to receive broadcasts
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    try{
+        const socket = new WebSocket(wsScheme + '://' + window.location.host + '/ws/posts/');
+        socket.addEventListener('message', function(evt){
+            try{
+                const data = JSON.parse(evt.data);
+                if(data.type === 'new_post' && data.html){
+                    const pid = String(data.post_id || '');
+                    if(seen.has(pid) || document.querySelector(`[data-post-id="${pid}"]`)) return;
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = data.html;
+                    const card = wrapper.firstElementChild;
+                    if(card){ feed.prepend(card); }
+                    return;
+                }
+
+                if(data.type === 'post_like'){
+                    const pid = String(data.post_id || '');
+                    const card = document.querySelector(`[data-post-id="${pid}"]`);
+                    if(!card) return;
+                    const likesSpan = card.querySelector('.likes-count');
+                    if(likesSpan) likesSpan.textContent = (data.likes_count || 0) + ' likes';
+                    return;
+                }
+
+                if(data.type === 'post_comment'){
+                    const pid = String(data.post_id || '');
+                    const card = document.querySelector(`[data-post-id="${pid}"]`);
+                    if(!card) return;
+                    const commentsSection = card.querySelector(`#comments-${pid}`);
+                    // update comment count
+                    const commentsCount = card.querySelector('.comments-count');
+                    if(commentsCount) commentsCount.textContent = ((parseInt(commentsCount.textContent) || 0) + 1) + ' comments';
+                    // if comments section visible or exists, append comment
+                    if(commentsSection){
+                        const c = data.comment;
+                        const div = document.createElement('div');
+                        div.className = 'd-flex align-items-start mb-2';
+                        div.innerHTML = `
+                            <img src="${c.profile_picture}" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
+                            <div class="flex-grow-1">
+                                <div class="bg-light rounded p-2">
+                                    <strong class="small">${c.user}</strong>
+                                    <p class="mb-0 small">${c.content}</p>
+                                </div>
+                                <small class="text-muted">Just now</small>
+                            </div>
+                        `;
+                        commentsSection.insertBefore(div, commentsSection.querySelector('.add-comment-form'));
+                    }
+                    return;
+                }
+            }catch(e){ console.error('Invalid posts ws data', e); }
+        });
+    }catch(err){ console.warn('Posts websocket failed', err); }
+
+})();
+</script>
+
 <style>
 .hover-bg:hover {
     background-color: #f8f9fa;
     cursor: pointer;
 }
+
+.suggest-card { background: #fff; }
+.suggest-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.06); transform: translateY(-2px); }
+.match-preview { max-width: 220px; }
 
 .like-btn.active {
     background-color: #dc3545;
