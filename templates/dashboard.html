@@ -128,87 +128,68 @@
     <div id="main-content" class="col-md-6">
         <!-- Featured Matches Carousel -->
         <div class="card shadow-sm mb-4 featured-card">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="fas fa-fire text-danger"></i> Featured Matches <small class="text-muted">Handpicked for you</small></h6>
-                <a href="{% url 'matching:discover' %}" class="btn btn-sm btn-outline-primary">See All</a>
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Featured Matches <small class="text-muted">Handpicked for you</small></h6>
             </div>
-            <div class="card-body p-3">
-                <div class="featured-carousel" id="featured-carousel" aria-live="polite">
-                    {% for fu in featured_users %}
-                    <div class="featured-item match-card" data-username="{{ fu.username }}">
-                        <div class="match-image">
-                            <img src="{{ fu.profile_picture.url }}" alt="{{ fu.username }}" loading="lazy">
-                            {% if fu.is_online %}
-                            <span class="online-badge"></span>
-                            {% endif %}
-                        </div>
-                        <div class="match-info">
-                            <a href="{% url 'users:profile_view' fu.username %}" class="match-name">{{ fu.username }}</a>
-                            <div class="match-details">{{ fu.get_gender_display }}{% if fu.age %}, {{ fu.age }}{% endif %}</div>
-                        </div>
-                        <div class="match-actions">
-                            <button class="btn btn-sm btn-outline-danger btn-featured-pass" data-username="{{ fu.username }}" title="Pass">
-                                <i class="fas fa-times"></i>
-                            </button>
-                            <button class="btn btn-sm btn-primary btn-featured-like" data-username="{{ fu.username }}" title="Like">
-                                <i class="fas fa-heart"></i>
-                            </button>
-                            <a href="{% url 'chat:chat_room' fu.username %}" class="btn btn-sm btn-success" title="Chat">
-                                <i class="fas fa-comment"></i>
-                            </a>
+            <div class="card-body p-2">
+                <div class="featured-carousel-wrapper">
+                    <div class="featured-carousel" id="featured-carousel">
+                        <div class="featured-track">
+                            <div class="match-card">
+                                <img src="{% static 'images/featured-img-1.jpg' %}" alt="Discover" loading="lazy">
+                                <div class="match-overlay">
+                                    <span>Discover</span>
+                                </div>
+                            </div>
+                            <div class="match-card">
+                                <img src="{% static 'images/featured-img-2.jpg' %}" alt="New Faces" loading="lazy">
+                                <div class="match-overlay">
+                                    <span>New Faces</span>
+                                </div>
+                            </div>
+                            <div class="match-card">
+                                <img src="{% static 'images/featured-img-3.jpg' %}" alt="Trending" loading="lazy">
+                                <div class="match-overlay">
+                                    <span>Trending</span>
+                                </div>
+                            </div>
+                            <div class="match-card">
+                                <img src="{% static 'images/featured-img-4.jpg' %}" alt="For You" loading="lazy">
+                                <div class="match-overlay">
+                                    <span>For You</span>
+                                </div>
+                            </div>
+                            <!-- Duplicate for seamless loop -->
+                            <div class="match-card">
+                                <img src="{% static 'images/featured-img-1.jpg' %}" alt="Discover" loading="lazy">
+                                <div class="match-overlay">
+                                    <span>Discover</span>
+                                </div>
+                            </div>
+                            <div class="match-card">
+                                <img src="{% static 'images/featured-img-2.jpg' %}" alt="New Faces" loading="lazy">
+                                <div class="match-overlay">
+                                    <span>New Faces</span>
+                                </div>
+                            </div>
+                            <div class="match-card">
+                                <img src="{% static 'images/featured-img-3.jpg' %}" alt="Trending" loading="lazy">
+                                <div class="match-overlay">
+                                    <span>Trending</span>
+                                </div>
+                            </div>
+                            <div class="match-card">
+                                <img src="{% static 'images/featured-img-4.jpg' %}" alt="For You" loading="lazy">
+                                <div class="match-overlay">
+                                    <span>For You</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    {% empty %}
-                    <div class="text-center text-muted py-4 w-100">
-                        <i class="fas fa-users fa-2x mb-2"></i>
-                        <p class="mb-0">No new matches to show</p>
-                        <a href="{% url 'matching:discover' %}" class="btn btn-sm btn-primary mt-2">Discover More</a>
-                    </div>
-                    {% endfor %}
                 </div>
-                {% if featured_users %}
-                <div class="carousel-controls mt-2 text-center">
-                    <button id="featured-prev" class="btn btn-sm btn-outline-secondary">&larr;</button>
-                    <button id="featured-next" class="btn btn-sm btn-outline-secondary">&rarr;</button>
-                </div>
-                {% endif %}
             </div>
         </div>
 
-        <!-- Who Liked You Section -->
-        {% if users_who_liked_me %}
-        <div class="card shadow-sm mb-4 likes-received-card">
-            <div class="card-header bg-gradient-pink text-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="fas fa-heart"></i> Who Liked You <span class="badge bg-light text-danger ms-2">{{ likes_received_count }}</span></h6>
-            </div>
-            <div class="card-body p-2">
-                <div class="likes-carousel">
-                    {% for like in users_who_liked_me %}
-                    <div class="like-card" data-username="{{ like.user.username }}">
-                        <div class="like-avatar">
-                            <img src="{{ like.user.profile_picture.url }}" alt="{{ like.user.username }}" class="rounded-circle">
-                            {% if like.user.is_online %}
-                            <span class="online-dot"></span>
-                            {% endif %}
-                        </div>
-                        <div class="like-info">
-                            <a href="{% url 'users:profile_view' like.user.username %}" class="like-name">{{ like.user.username }}</a>
-                            <small class="text-muted">{{ like.created_at|timesince }} ago</small>
-                        </div>
-                        <div class="like-actions">
-                            <button class="btn btn-sm btn-primary btn-like-back" data-username="{{ like.user.username }}" title="Like Back">
-                                <i class="fas fa-heart"></i>
-                            </button>
-                            <a href="{% url 'chat:chat_room' like.user.username %}" class="btn btn-sm btn-outline-success" title="Chat">
-                                <i class="fas fa-comment"></i>
-                            </a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
         <!-- Mobile quick-nav: only visible on small screens -->
         <div class="mobile-quick-nav d-none mb-3" id="mobile-quick-nav">
             <div class="d-flex gap-2">
@@ -876,28 +857,75 @@ document.addEventListener('DOMContentLoaded', function(){
 .match-preview { max-width: 220px; }
 
 /* Featured carousel compact styling */
-.featured-carousel {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 6px;
+.featured-carousel-wrapper {
+    overflow: hidden;
+    position: relative;
 }
-.featured-item {
-    flex: 0 0 140px;
-    width: 140px;
-    border-radius: 8px;
+.featured-carousel {
     overflow: hidden;
 }
-.featured-item .match-image img {
+.featured-track {
+    display: flex;
+    gap: 10px;
+    animation: scroll-carousel 20s linear infinite;
+    width: max-content;
+}
+.featured-track:hover {
+    animation-play-state: paused;
+}
+@keyframes scroll-carousel {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+.match-card {
+    flex: 0 0 100px;
+    width: 100px;
+    height: 100px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.match-card:hover {
+    transform: scale(1.05);
+}
+.match-card img {
     width: 100%;
-    height: 140px;
+    height: 100%;
     object-fit: cover;
     display: block;
 }
+.match-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    padding: 6px 8px;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+}
 
-/* Enhanced featured carousel card styling */
+/* Mobile: even smaller cards */
+@media (max-width: 576px) {
+    .match-card {
+        flex: 0 0 80px;
+        width: 80px;
+        height: 80px;
+    }
+    .match-overlay {
+        font-size: 0.6rem;
+        padding: 4px 6px;
+    }
+    .featured-track {
+        gap: 8px;
+    }
+}
+
 .featured-item {
     flex: 0 0 160px;
     width: 160px;
