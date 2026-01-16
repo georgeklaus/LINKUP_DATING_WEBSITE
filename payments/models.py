@@ -52,3 +52,35 @@ class ProfileView(models.Model):
             models.Index(fields=['viewer', 'created_at']),
             models.Index(fields=['viewed_user', 'created_at']),
         ]
+
+
+class RawWebhook(models.Model):
+    """Store raw incoming webhook payloads for auditing, verification and replay.
+
+    - `provider` is a short name like 'megapay' or 'mpesa'.
+    - `provider_reference` is the provider's request id (MerchantRequestID / merchant_request_id).
+    - `payload` stores the JSON body the provider POSTed.
+    - `headers` stores relevant headers as JSON for debugging/verification.
+    - `received_at` is when we received it.
+    - `processed` indicates whether we've applied the webhook to a Transaction.
+    - `transaction` optional FK to the `Transaction` that was matched/processed.
+    """
+
+    provider = models.CharField(max_length=50)
+    provider_reference = models.CharField(max_length=100, blank=True, db_index=True)
+    payload = models.JSONField()
+    headers = models.JSONField(null=True, blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    processed = models.BooleanField(default=False, db_index=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    transaction = models.ForeignKey('Transaction', null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        db_table = 'raw_webhooks'
+        indexes = [
+            models.Index(fields=['provider', 'provider_reference']),
+            models.Index(fields=['processed', 'received_at']),
+        ]
+
+    def __str__(self):
+        return f"RawWebhook(provider={self.provider} ref={self.provider_reference} processed={self.processed})"

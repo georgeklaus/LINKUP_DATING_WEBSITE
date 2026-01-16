@@ -10,4 +10,8 @@ urlpatterns = [
     path('mpesa-callback/', views.mpesa_callback, name='mpesa_callback'),
     # Local MegaPay stub for development testing
     path('_megapay_stub/mpesa/stk-push', views.megapay_stub_stk_push, name='megapay_stub_stk_push'),
+    path('_megapay_stub/trigger-callback/', views.megapay_stub_trigger, name='megapay_stub_trigger'),
+    path('_megapay_stub/mpesa/transaction-status', views.megapay_stub_transaction_status, name='megapay_stub_transaction_status'),
+    path('_megapay_stub/mpesa/transaction-status/', views.megapay_stub_transaction_status),
+    path('pending/<int:txn_id>/', views.pending_payment, name='pending_payment'),
 ]

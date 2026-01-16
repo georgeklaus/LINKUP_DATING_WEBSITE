@@ -179,3 +179,52 @@ window.LoveConnect = {
     getCookie,
     previewImage
 };
+
+// Add coins to displayed coin-balance elements (incremental)
+function addCoins(amount) {
+    const coinElements = document.querySelectorAll('.coin-balance');
+    coinElements.forEach(element => {
+        // Attempt to parse existing numeric value
+        const text = element.textContent || '';
+        const m = text.match(/(\d+)/);
+        let current = 0;
+        if (m) current = parseInt(m[1], 10);
+        const updated = current + Number(amount || 0);
+        element.textContent = updated + ' coins';
+    });
+}
+
+// Simple toast/notification helper using Bootstrap toasts
+function showToast(message, title) {
+    // Ensure container
+    let container = document.getElementById('notification-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notification-toast-container';
+        container.style.position = 'fixed';
+        container.style.top = '1rem';
+        container.style.right = '1rem';
+        container.style.zIndex = 1100;
+        document.body.appendChild(container);
+    }
+
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `\
+    <div id="${toastId}" class="toast align-items-center text-bg-light border" role="status" aria-live="polite" aria-atomic="true">\
+      <div class="d-flex">\
+        <div class="toast-body">${title ? '<strong>'+title+'</strong><br/>' : ''}${message}</div>\
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>\
+      </div>\
+    </div>`;
+
+    container.insertAdjacentHTML('beforeend', toastHtml);
+    const toastEl = document.getElementById(toastId);
+    const bsToast = new bootstrap.Toast(toastEl, { delay: 5000 });
+    bsToast.show();
+    // remove after hidden
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+}
+
+// Expose new helpers
+window.LoveConnect.addCoins = addCoins;
+window.LoveConnect.showToast = showToast;

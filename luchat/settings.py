@@ -8,7 +8,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-produc
 
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,192.168.1.7,*', cast=lambda v: [s.strip() for s in v.split(',')])
 
 
 INSTALLED_APPS = [
@@ -33,6 +33,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -88,6 +89,9 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Use WhiteNoise for serving static files when using Daphne in development/production
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -126,7 +130,26 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEGAPAY_API_KEY = config('MEGAPAY_API_KEY', default='')
 MEGAPAY_BASE_URL = config('MEGAPAY_BASE_URL', default='')
 
+# Webhook verification: set a shared secret provided by the payment gateway
+# and optionally enforce that incoming callbacks include a valid HMAC signature.
+MEGAPAY_WEBHOOK_SECRET = config('MEGAPAY_WEBHOOK_SECRET', default='')
+MEGAPAY_ENFORCE_WEBHOOK_SIGNATURE = config('MEGAPAY_ENFORCE_WEBHOOK_SIGNATURE', default=False, cast=bool)
+
+# Local stub behavior: control whether the dev /mpesa/stk-push stub auto-posts
+# a successful callback. For a realistic dev flow where users must be prompted
+# for a PIN and manual simulation is used, set this to False.
+MEGAPAY_STUB_AUTO_CALLBACK = config('MEGAPAY_STUB_AUTO_CALLBACK', default=False, cast=bool)
+
 # During local development you may want to use the built-in MegaPay stub.
 USE_LOCAL_MEGAPAY_STUB = config('USE_LOCAL_MEGAPAY_STUB', default=True, cast=bool)
 if DEBUG and USE_LOCAL_MEGAPAY_STUB:
     MEGAPAY_BASE_URL = config('LOCAL_MEGAPAY_STUB_URL', default='http://127.0.0.1:8000/payments/_megapay_stub')
+
+# Celery beat schedule: periodically reconcile pending payments
+CELERY_BEAT_SCHEDULE = {
+    'reconcile-payments-every-5-mins': {
+        'task': 'payments.tasks.reconcile_pending_transactions',
+        'schedule': 300.0,
+        'args': (10, 100),
+    },
+}

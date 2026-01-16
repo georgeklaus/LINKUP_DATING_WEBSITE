@@ -2,9 +2,26 @@
 {% load static %}
 
 {% block content %}
+<div class="dashboard-layout">
 <div class="row">
+    <!-- Offcanvas containers (mobile) - content is cloned on demand -->
+    <div id="offcanvas-left" class="offcanvas offcanvas-start" aria-hidden="true">
+        <div class="offcanvas-header d-flex justify-content-between align-items-center p-2 border-bottom">
+            <strong>Explore</strong>
+            <button type="button" class="btn-close" aria-label="Close" data-offcanvas-close="left">×</button>
+        </div>
+        <div class="offcanvas-body p-2"></div>
+    </div>
+
+    <div id="offcanvas-right" class="offcanvas offcanvas-end" aria-hidden="true">
+        <div class="offcanvas-header d-flex justify-content-between align-items-center p-2 border-bottom">
+            <strong>Chats & Actions</strong>
+            <button type="button" class="btn-close" aria-label="Close" data-offcanvas-close="right">×</button>
+        </div>
+        <div class="offcanvas-body p-2"></div>
+    </div>
     <!-- Left Sidebar - Online Users -->
-    <div class="col-md-3">
+    <div id="left-sidebar" class="col-md-3">
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <div>
@@ -108,40 +125,100 @@
     </div>
 
     <!-- Main Content - Posts -->
-    <div class="col-md-6">
+    <div id="main-content" class="col-md-6">
         <!-- Featured Matches Carousel -->
         <div class="card shadow-sm mb-4 featured-card">
-            <div class="card-header bg-light">
-                <h6 class="mb-0">Featured Matches <small class="text-muted">Handpicked for you</small></h6>
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-fire text-danger"></i> Featured Matches <small class="text-muted">Handpicked for you</small></h6>
+                <a href="{% url 'matching:discover' %}" class="btn btn-sm btn-outline-primary">See All</a>
             </div>
             <div class="card-body p-3">
-                <div class="featured-carousel" id="featured-carousel">
-                    {% for m in suggested_matches|slice:":8" %}
-                    <div class="match-card" data-username="{{ m.username }}">
+                <div class="featured-carousel" id="featured-carousel" aria-live="polite">
+                    {% for fu in featured_users %}
+                    <div class="featured-item match-card" data-username="{{ fu.username }}">
                         <div class="match-image">
-                            <img src="{{ m.profile_picture.url }}" alt="{{ m.username }}" loading="lazy">
+                            <img src="{{ fu.profile_picture.url }}" alt="{{ fu.username }}" loading="lazy">
+                            {% if fu.is_online %}
+                            <span class="online-badge"></span>
+                            {% endif %}
                         </div>
-                        <div class="match-info p-2 text-center">
-                            <strong>{{ m.username }}</strong>
-                            <div class="small text-muted">{{ m.location|default:'Nearby' }}</div>
-                            <div class="compatibility mt-1">💖 {{ m.compatibility_score|default:'--' }}%</div>
+                        <div class="match-info">
+                            <a href="{% url 'users:profile_view' fu.username %}" class="match-name">{{ fu.username }}</a>
+                            <div class="match-details">{{ fu.get_gender_display }}{% if fu.age %}, {{ fu.age }}{% endif %}</div>
                         </div>
-                        <div class="match-actions d-flex gap-2 p-2 justify-content-center">
-                            <button class="btn btn-sm btn-outline-danger match-pass" data-action="pass">Pass</button>
-                            <a href="{% url 'chat:chat_room' m.username %}" class="btn btn-sm btn-like">Like</a>
-                            <button class="btn btn-sm btn-superlike match-super" data-action="superlike">Super</button>
+                        <div class="match-actions">
+                            <button class="btn btn-sm btn-outline-danger btn-featured-pass" data-username="{{ fu.username }}" title="Pass">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary btn-featured-like" data-username="{{ fu.username }}" title="Like">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                            <a href="{% url 'chat:chat_room' fu.username %}" class="btn btn-sm btn-success" title="Chat">
+                                <i class="fas fa-comment"></i>
+                            </a>
                         </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-4 w-100">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <p class="mb-0">No new matches to show</p>
+                        <a href="{% url 'matching:discover' %}" class="btn btn-sm btn-primary mt-2">Discover More</a>
                     </div>
                     {% endfor %}
                 </div>
+                {% if featured_users %}
                 <div class="carousel-controls mt-2 text-center">
                     <button id="featured-prev" class="btn btn-sm btn-outline-secondary">&larr;</button>
                     <button id="featured-next" class="btn btn-sm btn-outline-secondary">&rarr;</button>
                 </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Who Liked You Section -->
+        {% if users_who_liked_me %}
+        <div class="card shadow-sm mb-4 likes-received-card">
+            <div class="card-header bg-gradient-pink text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-heart"></i> Who Liked You <span class="badge bg-light text-danger ms-2">{{ likes_received_count }}</span></h6>
+            </div>
+            <div class="card-body p-2">
+                <div class="likes-carousel">
+                    {% for like in users_who_liked_me %}
+                    <div class="like-card" data-username="{{ like.user.username }}">
+                        <div class="like-avatar">
+                            <img src="{{ like.user.profile_picture.url }}" alt="{{ like.user.username }}" class="rounded-circle">
+                            {% if like.user.is_online %}
+                            <span class="online-dot"></span>
+                            {% endif %}
+                        </div>
+                        <div class="like-info">
+                            <a href="{% url 'users:profile_view' like.user.username %}" class="like-name">{{ like.user.username }}</a>
+                            <small class="text-muted">{{ like.created_at|timesince }} ago</small>
+                        </div>
+                        <div class="like-actions">
+                            <button class="btn btn-sm btn-primary btn-like-back" data-username="{{ like.user.username }}" title="Like Back">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                            <a href="{% url 'chat:chat_room' like.user.username %}" class="btn btn-sm btn-outline-success" title="Chat">
+                                <i class="fas fa-comment"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <!-- Mobile quick-nav: only visible on small screens -->
+        <div class="mobile-quick-nav d-none mb-3" id="mobile-quick-nav">
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary flex-fill" id="nav-show-side-a">Explore</button>
+                <button class="btn btn-sm btn-outline-secondary flex-fill" id="nav-show-side-b">Chats</button>
             </div>
         </div>
         <!-- Create Post -->
-        <div class="card shadow-sm mb-4">
+        <div class="center-scroll">
+        <div class="card shadow-sm mb-4 create-post-card">
             <div class="card-body">
                 <div class="d-flex align-items-center mb-3">
                     <img src="{{ user.profile_picture.url }}" class="rounded-circle me-3" width="50" height="50" style="object-fit: cover;">
@@ -185,10 +262,12 @@
             </div>
         {% endfor %}
         </div>
+        <!-- end center-scroll -->
+        </div>
     </div>
 
     <!-- Right Sidebar - Quick Actions -->
-    <div class="col-md-3">
+    <div id="right-sidebar" class="col-md-3">
         <!-- Recent Chats Preview -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white">
@@ -265,6 +344,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 
@@ -377,16 +457,120 @@ document.getElementById('postImage').addEventListener('change', function(e) {
     prev && prev.addEventListener('click', ()=>{
         carousel.scrollBy({left: -carousel.offsetWidth * 0.6, behavior: 'smooth'});
     });
+})();
 
-    // Simple button handlers for pass/superlike (UI only)
-    carousel.addEventListener('click', e=>{
-        const pass = e.target.closest('.match-pass');
-        const superb = e.target.closest('.match-super');
-        if(pass){
-            const card = pass.closest('.match-card'); if(card) card.style.display='none';
+// Featured carousel and Who Liked You like/pass handlers
+;(function(){
+    const csrftoken = '{{ csrf_token }}';
+
+    function postAction(url){
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Accept': 'application/json'
+            }
+        }).then(r=>r.json());
+    }
+
+    function animateAndRemove(card){
+        card.style.transition = 'opacity 0.3s, transform 0.3s';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.8)';
+        setTimeout(()=> card.remove(), 300);
+    }
+
+    function showMatchModal(username){
+        // Create a simple match notification
+        const modal = document.createElement('div');
+        modal.className = 'match-modal';
+        modal.innerHTML = `
+            <div class="match-modal-content">
+                <div class="match-icon">🎉</div>
+                <h3>It's a Match!</h3>
+                <p>You and <strong>${username}</strong> like each other!</p>
+                <div class="match-modal-actions">
+                    <a href="/chat/${username}/" class="btn btn-primary">Send Message</a>
+                    <button class="btn btn-outline-secondary match-modal-close">Keep Browsing</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        setTimeout(()=> modal.classList.add('show'), 10);
+        
+        modal.querySelector('.match-modal-close').addEventListener('click', ()=>{
+            modal.classList.remove('show');
+            setTimeout(()=> modal.remove(), 300);
+        });
+        modal.addEventListener('click', (e)=>{
+            if(e.target === modal){
+                modal.classList.remove('show');
+                setTimeout(()=> modal.remove(), 300);
+            }
+        });
+    }
+
+    document.addEventListener('click', function(e){
+        // Featured carousel like button
+        const likeBtn = e.target.closest('.btn-featured-like');
+        if(likeBtn){
+            const username = likeBtn.dataset.username;
+            const card = likeBtn.closest('.featured-item');
+            likeBtn.disabled = true;
+            likeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            postAction(`/matching/like/${username}/`).then(res=>{
+                if(res.success){
+                    if(res.matched){
+                        showMatchModal(username);
+                    }
+                    animateAndRemove(card);
+                }
+            }).catch(()=>{
+                likeBtn.disabled = false;
+                likeBtn.innerHTML = '<i class="fas fa-heart"></i>';
+            });
+            return;
         }
-        if(superb){
-            const card = superb.closest('.match-card'); if(card) card.style.transform='scale(0.98)';
+
+        // Featured carousel pass button
+        const passBtn = e.target.closest('.btn-featured-pass');
+        if(passBtn){
+            const username = passBtn.dataset.username;
+            const card = passBtn.closest('.featured-item');
+            
+            postAction(`/matching/dislike/${username}/`).then(res=>{
+                if(res.success){
+                    animateAndRemove(card);
+                }
+            });
+            return;
+        }
+
+        // Like back button in "Who Liked You"
+        const likeBackBtn = e.target.closest('.btn-like-back');
+        if(likeBackBtn){
+            const username = likeBackBtn.dataset.username;
+            const card = likeBackBtn.closest('.like-card');
+            likeBackBtn.disabled = true;
+            likeBackBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            postAction(`/matching/like/${username}/`).then(res=>{
+                if(res.success){
+                    if(res.matched){
+                        showMatchModal(username);
+                    }
+                    // Change button to show it's matched
+                    likeBackBtn.classList.remove('btn-primary');
+                    likeBackBtn.classList.add('btn-success');
+                    likeBackBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    likeBackBtn.disabled = true;
+                }
+            }).catch(()=>{
+                likeBackBtn.disabled = false;
+                likeBackBtn.innerHTML = '<i class="fas fa-heart"></i>';
+            });
+            return;
         }
     });
 })();
@@ -606,6 +790,81 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 </script>
 
+<script>
+// Offcanvas drawers for mobile: clone sidebar content into drawers and manage backdrop
+(function(){
+    const leftBtn = document.getElementById('nav-show-side-a');
+    const rightBtn = document.getElementById('nav-show-side-b');
+
+    function createBackdrop(){
+        let bc = document.getElementById('offcanvas-backdrop');
+        if(!bc){
+            bc = document.createElement('div'); bc.id='offcanvas-backdrop';
+            bc.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1040;opacity:0;transition:opacity .25s;';
+            document.body.appendChild(bc);
+        }
+        return bc;
+    }
+
+    function showPanel(side){
+        const panel = document.getElementById(side==='left'?'offcanvas-left':'offcanvas-right');
+        if(!panel) return;
+        const src = document.getElementById(side==='left'?'left-sidebar':'right-sidebar');
+        const body = panel.querySelector('.offcanvas-body');
+        if(src && body){ body.innerHTML = src.innerHTML; }
+        panel.classList.add('show'); panel.style.transform = 'translateX(0)'; panel.setAttribute('aria-hidden','false');
+        const bc = createBackdrop(); requestAnimationFrame(()=>bc.style.opacity='1'); bc.classList.add('show');
+        document.body.classList.add('offcanvas-open'); document.body.style.overflow = 'hidden';
+    }
+
+    function hidePanel(side){
+        const panel = document.getElementById(side==='left'?'offcanvas-left':'offcanvas-right');
+        if(!panel) return;
+        panel.classList.remove('show'); panel.setAttribute('aria-hidden','true');
+        const bc = document.getElementById('offcanvas-backdrop'); if(bc){ bc.style.opacity='0'; setTimeout(()=>{ bc.remove(); },250); }
+        document.body.classList.remove('offcanvas-open'); document.body.style.overflow = '';
+    }
+
+    leftBtn && leftBtn.addEventListener('click', function(){ if(window.matchMedia('(max-width:767px)').matches){ showPanel('left'); return; } document.getElementById('left-sidebar')?.scrollIntoView({behavior:'smooth'}); });
+    rightBtn && rightBtn.addEventListener('click', function(){ if(window.matchMedia('(max-width:767px)').matches){ showPanel('right'); return; } document.getElementById('right-sidebar')?.scrollIntoView({behavior:'smooth'}); });
+
+    document.addEventListener('click', function(e){
+        const c = e.target.closest('[data-offcanvas-close]'); if(c){ hidePanel(c.dataset.offcanvasClose); }
+        if(e.target.id === 'offcanvas-backdrop'){ hidePanel('left'); hidePanel('right'); }
+    });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ hidePanel('left'); hidePanel('right'); } });
+
+    // setup initial offcanvas positioning via inline styles for robustness
+    document.querySelectorAll('.offcanvas-start').forEach(el=>{
+        el.style.position='fixed'; el.style.top='0'; el.style.bottom='0'; el.style.left='0';
+        el.style.width='85%'; el.style.maxWidth='420px'; el.style.transform='translateX(-110%)';
+        el.style.zIndex='1050'; el.style.background='#fff'; el.style.transition='transform .28s ease';
+    });
+    document.querySelectorAll('.offcanvas-end').forEach(el=>{
+        el.style.position='fixed'; el.style.top='0'; el.style.bottom='0'; el.style.right='0';
+        el.style.width='85%'; el.style.maxWidth='420px'; el.style.transform='translateX(110%)';
+        el.style.zIndex='1050'; el.style.background='#fff'; el.style.transition='transform .28s ease';
+    });
+
+    const styleShow = document.createElement('style');
+    styleShow.textContent = '.offcanvas.show{transform:translateX(0) !important} .offcanvas-backdrop.show{opacity:1}';
+    document.head.appendChild(styleShow);
+
+    // hide the column sidebars on small screens so the feed appears first
+    const mq = window.matchMedia('(max-width:767px)');
+    function updateSidebarVisibility(){
+        if(mq.matches){
+            document.getElementById('left-sidebar') && (document.getElementById('left-sidebar').style.display='none');
+            document.getElementById('right-sidebar') && (document.getElementById('right-sidebar').style.display='none');
+        } else {
+            document.getElementById('left-sidebar') && (document.getElementById('left-sidebar').style.display='');
+            document.getElementById('right-sidebar') && (document.getElementById('right-sidebar').style.display='');
+        }
+    }
+    updateSidebarVisibility(); mq.addEventListener('change', updateSidebarVisibility);
+})();
+</script>
+
 <style>
 .hover-bg:hover {
     background-color: #f8f9fa;
@@ -615,6 +874,275 @@ document.addEventListener('DOMContentLoaded', function(){
 .suggest-card { background: #fff; }
 .suggest-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.06); transform: translateY(-2px); }
 .match-preview { max-width: 220px; }
+
+/* Featured carousel compact styling */
+.featured-carousel {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+}
+.featured-item {
+    flex: 0 0 140px;
+    width: 140px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.featured-item .match-image img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    display: block;
+}
+
+/* Enhanced featured carousel card styling */
+.featured-item {
+    flex: 0 0 160px;
+    width: 160px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+.featured-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+.featured-item .match-image {
+    position: relative;
+    height: 140px;
+    overflow: hidden;
+}
+.featured-item .online-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 12px;
+    height: 12px;
+    background: #28a745;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 4px rgba(40,167,69,0.5);
+}
+.featured-item .match-info {
+    padding: 8px;
+    text-align: center;
+}
+.featured-item .match-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+    text-decoration: none;
+    display: block;
+}
+.featured-item .match-name:hover {
+    color: #e91e63;
+}
+.featured-item .match-details {
+    font-size: 0.75rem;
+    color: #666;
+}
+.featured-item .match-actions {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 8px 10px;
+}
+.featured-item .match-actions .btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+/* Who Liked You section */
+.bg-gradient-pink {
+    background: linear-gradient(135deg, #e91e63 0%, #ff6b9d 100%);
+}
+.likes-carousel {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 8px 4px;
+    scroll-behavior: smooth;
+}
+.like-card {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    transition: transform 0.2s;
+}
+.like-card:hover {
+    transform: scale(1.02);
+}
+.like-avatar {
+    position: relative;
+    flex-shrink: 0;
+}
+.like-avatar img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+}
+.like-avatar .online-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    background: #28a745;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+.like-info {
+    min-width: 80px;
+}
+.like-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+    text-decoration: none;
+    display: block;
+}
+.like-name:hover {
+    color: #e91e63;
+}
+.like-actions {
+    display: flex;
+    gap: 6px;
+}
+.likes-received-card .card-body {
+    background: #fef5f8;
+}
+
+/* Match Modal */
+.match-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.match-modal.show {
+    opacity: 1;
+}
+.match-modal-content {
+    background: linear-gradient(135deg, #e91e63 0%, #ff6b9d 100%);
+    color: #fff;
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 400px;
+    transform: scale(0.8);
+    transition: transform 0.3s;
+}
+.match-modal.show .match-modal-content {
+    transform: scale(1);
+}
+.match-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+.match-modal-content h3 {
+    font-size: 28px;
+    margin-bottom: 12px;
+}
+.match-modal-content p {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-bottom: 24px;
+}
+.match-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.match-modal-actions .btn {
+    min-width: 140px;
+}
+.match-modal-actions .btn-outline-secondary {
+    color: #fff;
+    border-color: rgba(255,255,255,0.5);
+}
+.match-modal-actions .btn-outline-secondary:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+/* Track styling for continuous scroll animation */
+.featured-track { display: flex; align-items: stretch; }
+.featured-carousel:focus .featured-track,
+.featured-carousel:hover .featured-track { outline: none; }
+.featured-track { animation-play-state: running; }
+
+/* Center column scroll area */
+.center-scroll {
+    flex: 1 1 auto;
+    min-height: 0; /* critical for flex overflow */
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Create post card scrolls with the feed (not sticky) */
+.create-post-card {
+    position: static;
+}
+
+/* On small screens allow normal flow */
+@media (max-width: 767px) {
+    .center-scroll { flex: none; min-height: auto; max-height: none; overflow: visible; }
+}
+
+/* Dashboard layout: lock overall page scroll and allow only center area to scroll */
+.dashboard-layout {
+    height: calc(100vh - 112px); /* subtract navbar+footer approx */
+    overflow: hidden;
+}
+.dashboard-layout .row { height: 100%; }
+.dashboard-layout .col-md-3, .dashboard-layout .col-md-6 { height: 100%; overflow: hidden; }
+.dashboard-layout .col-md-6 { display: flex; flex-direction: column; }
+.dashboard-layout .col-md-3 .card-body { overflow-y: auto; }
+
+@media (max-width: 767px) {
+    .dashboard-layout { height: auto; overflow: visible; }
+    .dashboard-layout .col-md-3, .dashboard-layout .col-md-6 { height: auto; }
+}
+
+@media (max-width: 576px) {
+    .featured-item { flex: 0 0 110px; width: 110px; }
+    .featured-item .match-image img { height: 110px; }
+}
+
+/* Mobile layout: show main column first, then left/right sidebars */
+@media (max-width: 767px) {
+    .mobile-quick-nav { display: block; }
+    /* ensure row stacks (Bootstrap already does) but set explicit order */
+    .dashboard-layout .row { flex-direction: column; }
+    /* main content first */
+    #main-content { order: 1; }
+    /* left sidebar (online/suggested) after main */
+    #left-sidebar { order: 2; }
+    /* right sidebar (chats/quick actions) last */
+    #right-sidebar { order: 3; }
+
+    /* on mobile the columns are hidden and available via offcanvas drawers */
+    #left-sidebar, #right-sidebar { display: none !important; }
+
+    /* make sure center-scroll is full width and not sticky behaviour interfering */
+    .center-scroll { width: 100%; }
+    .create-post-card { position: static; top: auto; }
+}
 
 .like-btn.active {
     background-color: #dc3545;

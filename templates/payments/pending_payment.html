@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Pending{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="fas fa-hourglass-half"></i> Payment Pending</h4>
+            </div>
+            <div class="card-body text-center">
+                <p class="mb-3">Transaction reference: <strong>{{ transaction.mpesa_code }}</strong></p>
+                <p class="text-muted">Status: <strong>{{ transaction.status }}</strong></p>
+                <p class="text-muted">Amount: <strong>{{ transaction.amount }} KES</strong></p>
+
+                <div class="d-grid gap-2">
+                    <button id="simulate-btn" class="btn btn-primary btn-lg">Simulate M-Pesa Prompt (Enter PIN)</button>
+                    <a href="{% url 'payments:payment_failed' %}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+
+                <div id="result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('simulate-btn').addEventListener('click', function(){
+    fetch('{% url "payments:megapay_stub_trigger" %}', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({txn_id: {{ transaction.id }}})
+    }).then(r=>r.json()).then(j=>{
+        document.getElementById('result').innerText = JSON.stringify(j);
+        if(j.status === 'ok'){
+            // reload to show updated status
+            setTimeout(()=> location.reload(), 600);
+        }
+    }).catch(e=>{
+        document.getElementById('result').innerText = String(e);
+    });
+});
+</script>
+
+{% endblock %}

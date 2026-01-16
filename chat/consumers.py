@@ -257,6 +257,16 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'count': event.get('count', 0)
         }))
 
+    async def payment_notification(self, event):
+        # Send payment/transaction notification to client
+        await self.send(text_data=json.dumps({
+            'type': 'payment_notification',
+            'event': event.get('event'),
+            'transaction_id': event.get('transaction_id'),
+            'coins': event.get('coins'),
+            'amount': event.get('amount')
+        }))
+
 
 class PostsConsumer(AsyncWebsocketConsumer):
     """Broadcasts newly created posts to connected clients.

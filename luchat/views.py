@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from posts.models import Post
 from matching.utils import MatchFinder
+from matching.models import UserLike, UserDislike
 from users.forms import CustomUserCreationForm
 from django.contrib.auth import login
 from chat.models import ChatRoom
@@ -85,6 +86,23 @@ def dashboard(request):
         'compatible_users': compatible_users[:10],
         'all_online': all_online,
     }
+
+    # Featured users for carousel: compatible users excluding already liked/disliked
+    liked_ids = list(UserLike.objects.filter(user=request.user).values_list('liked_user_id', flat=True))
+    disliked_ids = list(UserDislike.objects.filter(user=request.user).values_list('disliked_user_id', flat=True))
+    excluded_ids = liked_ids + disliked_ids + [request.user.id]
+    
+    featured_users = MatchFinder.get_compatible_users(request.user).exclude(
+        id__in=excluded_ids
+    ).order_by('-is_online', '-last_activity')[:12]
+    context['featured_users'] = featured_users
+
+    # Users who liked the current user (for "Who Liked You" section)
+    users_who_liked_me = UserLike.objects.filter(
+        liked_user=request.user
+    ).select_related('user').order_by('-created_at')[:10]
+    context['users_who_liked_me'] = users_who_liked_me
+    context['likes_received_count'] = UserLike.objects.filter(liked_user=request.user).count()
 
     # Determine where 'My Messages' should go: default to chat list, but
     # if the user has a recent chat room, link directly to that room.
