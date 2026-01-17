@@ -58,15 +58,17 @@ def dashboard(request):
     # Provide "all online" list using recent activity window to avoid stale flags
     recent_threshold = timezone.now() - timedelta(minutes=5)
     base_all_online_qs = CustomUser.objects.filter(last_activity__gte=recent_threshold).exclude(id=request.user.id).order_by('-last_activity')
-    all_online = base_all_online_qs[:12]
 
     # Compatible (opposite-gender only) fallback: prefer a simple opposite-gender filter
     if getattr(request.user, 'gender', None) in ('M', 'F'):
         opposite_gender = 'F' if request.user.gender == 'M' else 'M'
         online_users = base_all_online_qs.filter(gender=opposite_gender)[:12]
+        # "All" should still only show compatible users but with all orientations
+        all_online = base_all_online_qs.filter(gender=opposite_gender)[:12]
     else:
         # fallback to existing MatchFinder rules for other orientations
         online_users = MatchFinder.get_online_users(request.user)
+        all_online = online_users[:12]
     
     # Get suggested matches
     # Prefer a simple opposite-gender list on the dashboard for clarity

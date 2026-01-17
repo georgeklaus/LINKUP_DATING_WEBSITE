@@ -1,0 +1,122 @@
+{% load static %}
+{% for match in suggested_matches %}
+<div class="match-card {% cycle 'size-normal' 'size-tall' 'size-normal' 'size-wide' 'size-normal' %}" 
+     data-username="{{ match.username }}"
+     data-online="{{ match.is_online|yesno:'true,false' }}"
+     data-compatibility="{{ match.compatibility_score|default:85 }}"
+     data-new="{{ match.is_new|yesno:'true,false' }}">
+    
+    <!-- Card Image -->
+    <div class="card-image">
+        <img src="{{ match.profile_picture.url }}" alt="{{ match.username }}" loading="lazy">
+        
+        <!-- Gradient Overlay -->
+        <div class="card-gradient"></div>
+        
+        <!-- Online Badge -->
+        {% if match.is_online %}
+        <div class="online-badge pulse">
+            <span class="online-dot"></span>
+            <span class="online-text">Online</span>
+        </div>
+        {% endif %}
+        
+        <!-- Compatibility Badge -->
+        <div class="compatibility-badge">
+            <span class="compat-score">{{ match.compatibility_score|default:85 }}%</span>
+            <span class="compat-label">Match</span>
+        </div>
+
+        <!-- New Badge (for recently joined) -->
+        {% if match.is_new %}
+        <div class="new-badge">
+            <i class="fas fa-sparkles"></i> NEW
+        </div>
+        {% endif %}
+        
+        <!-- Quick Actions Overlay -->
+        <div class="quick-actions">
+            <button class="action-btn btn-pass" data-username="{{ match.username }}" title="Pass">
+                <i class="fas fa-times"></i>
+            </button>
+            <button class="action-btn btn-superlike" data-username="{{ match.username }}" title="Superlike">
+                <i class="fas fa-star"></i>
+            </button>
+            <button class="action-btn btn-like" data-username="{{ match.username }}" title="Like">
+                <i class="fas fa-heart"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Card Info -->
+    <div class="card-info">
+        <div class="info-header">
+            <h3 class="match-name">
+                <a href="{% url 'users:profile_view' match.username %}">{{ match.username }}</a>
+                {% if match.is_verified %}<i class="fas fa-check-circle verified-icon"></i>{% endif %}
+            </h3>
+            <span class="match-age">{{ match.computed_age|default:match.age|default:"25" }}</span>
+        </div>
+        
+        <div class="match-meta">
+            {% if match.location %}
+            <span class="meta-item">
+                <i class="fas fa-map-marker-alt"></i> {{ match.location }}
+            </span>
+            {% endif %}
+            <span class="meta-item">
+                <i class="fas fa-{% if match.gender == 'M' %}mars{% elif match.gender == 'F' %}venus{% else %}genderless{% endif %}"></i>
+                {{ match.get_gender_display }}
+            </span>
+        </div>
+        
+        {% if match.bio %}
+        <p class="match-bio">{{ match.bio|truncatewords:12 }}</p>
+        {% endif %}
+        
+        <!-- Interest Tags -->
+        <div class="interest-tags">
+            {% if match.interests_list %}
+                {% for interest in match.interests_list %}
+                <span class="interest-tag">{{ interest }}</span>
+                {% endfor %}
+            {% elif match.profile.interests %}
+                {% for interest in match.profile.interests_list|slice:":4" %}
+                <span class="interest-tag">{{ interest }}</span>
+                {% endfor %}
+            {% else %}
+                <span class="interest-tag">💬 Chat</span>
+                <span class="interest-tag">☕ Coffee</span>
+            {% endif %}
+        </div>
+        
+        <!-- Card Actions -->
+        <div class="card-actions">
+            <a href="{% url 'users:profile_view' match.username %}" class="btn-card btn-view">
+                <i class="fas fa-user"></i> View
+            </a>
+            <a href="{% url 'chat:chat_room' match.username %}" class="btn-card btn-chat">
+                <i class="fas fa-comment"></i> Chat
+            </a>
+        </div>
+    </div>
+</div>
+{% empty %}
+<div class="no-matches">
+    <div class="no-matches-content">
+        <div class="no-matches-icon">
+            <i class="fas fa-heart-broken"></i>
+        </div>
+        <h3>No matches found</h3>
+        <p>Try adjusting your filters or check back later for new members!</p>
+        <div class="no-matches-actions">
+            <button class="btn-primary" id="reset-all-filters">
+                <i class="fas fa-undo"></i> Reset Filters
+            </button>
+            <a href="{% url 'users:settings' %}" class="btn-secondary">
+                <i class="fas fa-cog"></i> Update Preferences
+            </a>
+        </div>
+    </div>
+</div>
+{% endfor %}

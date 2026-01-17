@@ -3,6 +3,141 @@
 
 {% block content %}
 <div class="dashboard-layout">
+
+<!-- Mobile Bottom Navigation Bar -->
+<div class="mobile-bottom-nav" id="mobile-bottom-nav">
+    <button class="mobile-nav-item" id="mobile-nav-online">
+        <i class="fas fa-users"></i>
+        <span>Online</span>
+        {% if online_users.count > 0 %}<span class="nav-badge">{{ online_users.count }}</span>{% endif %}
+    </button>
+    <button class="mobile-nav-item" id="mobile-nav-matches">
+        <i class="fas fa-heart"></i>
+        <span>Matches</span>
+    </button>
+    <button class="mobile-nav-item active" id="mobile-nav-feed">
+        <i class="fas fa-home"></i>
+        <span>Feed</span>
+    </button>
+    <button class="mobile-nav-item" id="mobile-nav-chats">
+        <i class="fas fa-comments"></i>
+        <span>Chats</span>
+    </button>
+    <button class="mobile-nav-item" id="mobile-nav-discover">
+        <i class="fas fa-compass"></i>
+        <span>Discover</span>
+    </button>
+</div>
+
+<!-- Mobile Slide Panels -->
+<div id="mobile-panel-left" class="mobile-slide-panel mobile-panel-left">
+    <div class="mobile-panel-header">
+        <strong><i class="fas fa-users"></i> Online & Matches</strong>
+        <button type="button" class="mobile-panel-close" onclick="closeMobilePanel('left')">&times;</button>
+    </div>
+    <div class="mobile-panel-content">
+        <!-- Online Users -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-primary text-white py-2">
+                <h6 class="mb-0"><i class="fas fa-circle text-success"></i> Online Now</h6>
+            </div>
+            <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                {% for user in online_users %}
+                <div class="d-flex align-items-center mb-2 p-2 rounded" style="background: #f8f9fa;">
+                    <img src="{{ user.profile_picture.url }}" class="rounded-circle me-2" width="40" height="40" style="object-fit: cover;">
+                    <div class="flex-grow-1">
+                        <a href="{% url 'users:profile_view' user.username %}" class="text-decoration-none fw-bold text-dark small">{{ user.username }}</a>
+                        <div class="mt-1">
+                            <a href="{% url 'chat:chat_room' user.username %}" class="btn btn-sm btn-primary py-1 px-3" style="min-height: 32px; touch-action: manipulation;">
+                                <i class="fas fa-comment"></i> Chat
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center small mb-0">No users online</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Suggested Matches -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white py-2">
+                <h6 class="mb-0"><i class="fas fa-heart"></i> Suggested Matches</h6>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% for su in suggested_matches %}
+                <div class="d-flex align-items-center mb-2 p-2 rounded" style="background: #f8f9fa;">
+                    <img src="{{ su.profile_picture.url }}" class="rounded-circle me-2" width="45" height="45" style="object-fit: cover;">
+                    <div class="flex-grow-1">
+                        <a href="{% url 'users:profile_view' su.username %}" class="fw-bold text-dark small text-decoration-none">{{ su.username }}</a>
+                        <div class="small text-muted">{{ su.get_gender_display }}</div>
+                        <a href="{% url 'chat:chat_room' su.username %}" class="btn btn-sm btn-primary py-1 px-3 mt-1" style="min-height: 32px; touch-action: manipulation;">
+                            <i class="fas fa-comment"></i> Chat
+                        </a>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center small mb-0">No matches yet</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="mobile-panel-right" class="mobile-slide-panel mobile-panel-right">
+    <div class="mobile-panel-header">
+        <strong><i class="fas fa-comments"></i> Chats & Actions</strong>
+        <button type="button" class="mobile-panel-close" onclick="closeMobilePanel('right')">&times;</button>
+    </div>
+    <div class="mobile-panel-content">
+        <!-- Recent Chats -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-success text-white py-2">
+                <h6 class="mb-0"><i class="fas fa-comments"></i> Recent Chats</h6>
+            </div>
+            <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                {% for room in recent_chats %}
+                <a href="{% url 'chat:chat_room' room.other_user.username %}" class="d-flex align-items-center mb-2 p-2 rounded text-decoration-none" style="background: #f8f9fa;">
+                    <img src="{{ room.other_user.profile_picture.url }}" class="rounded-circle me-2" width="40" height="40" style="object-fit: cover;">
+                    <div class="flex-grow-1">
+                        <div class="fw-bold text-dark small">{{ room.other_user.username }}</div>
+                        <div class="small text-muted text-truncate" style="max-width: 180px;">{{ room.last_message|default:"Start chatting!" }}</div>
+                    </div>
+                    {% if room.unread_count > 0 %}
+                    <span class="badge bg-danger">{{ room.unread_count }}</span>
+                    {% endif %}
+                </a>
+                {% empty %}
+                <p class="text-muted text-center small mb-0">No recent chats</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning py-2">
+                <h6 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'chat:chat_list' %}" class="btn btn-outline-success">
+                        <i class="fas fa-envelope"></i> My Messages
+                    </a>
+                    <a href="{% url 'matching:discover' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-search"></i> Discover People
+                    </a>
+                    <a href="{% url 'payments:buy_coins' %}" class="btn btn-outline-warning">
+                        <i class="fas fa-coins"></i> Buy Coins
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="mobile-panel-overlay" class="mobile-panel-overlay" onclick="closeAllMobilePanels()"></div>
+
 <div class="row">
     <!-- Offcanvas containers (mobile) - content is cloned on demand -->
     <div id="offcanvas-left" class="offcanvas offcanvas-start" aria-hidden="true">
@@ -191,10 +326,17 @@
         </div>
 
         <!-- Mobile quick-nav: only visible on small screens -->
-        <div class="mobile-quick-nav d-none mb-3" id="mobile-quick-nav">
+        <div class="mobile-quick-nav mb-3" id="mobile-quick-nav">
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary flex-fill" id="nav-show-side-a">Explore</button>
-                <button class="btn btn-sm btn-outline-secondary flex-fill" id="nav-show-side-b">Chats</button>
+                <button class="btn btn-outline-primary flex-fill d-flex align-items-center justify-content-center gap-2" id="nav-show-side-a">
+                    <i class="fas fa-users"></i> 
+                    <span>Online & Matches</span>
+                    {% if online_users.count > 0 %}<span class="badge bg-success">{{ online_users.count }}</span>{% endif %}
+                </button>
+                <button class="btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-2" id="nav-show-side-b">
+                    <i class="fas fa-comments"></i>
+                    <span>Chats & Actions</span>
+                </button>
             </div>
         </div>
         <!-- Create Post -->
@@ -269,7 +411,7 @@
                                     <small class="text-muted">{% if chat.last_message %}{{ chat.last_message.timestamp|timesince }} ago{% endif %}</small>
                                 </div>
                             </div>
-                            <div class="small text-muted text-truncate">{{ chat.preview|default:chat.last_message.content }}</div>
+                            <div class="small text-muted text-truncate">{% if chat.last_message %}{{ chat.last_message.content|truncatechars:30 }}{% else %}Start chatting!{% endif %}</div>
                             <div class="mt-1 d-flex gap-2">
                                 <button class="btn btn-sm btn-outline-primary quick-reply-btn" data-chat-id="{{ chat.id }}">Reply</button>
                                 <a href="{% url 'chat:chat_room' chat.other_user.username %}" class="btn btn-sm btn-outline-success">Open</a>
@@ -1154,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 /* Mobile layout: show main column first, then left/right sidebars */
 @media (max-width: 767px) {
-    .mobile-quick-nav { display: block; }
+    .mobile-quick-nav { display: block !important; }
     /* ensure row stacks (Bootstrap already does) but set explicit order */
     .dashboard-layout .row { flex-direction: column; }
     /* main content first */
@@ -1170,6 +1312,27 @@ document.addEventListener('DOMContentLoaded', function(){
     /* make sure center-scroll is full width and not sticky behaviour interfering */
     .center-scroll { width: 100%; }
     .create-post-card { position: static; top: auto; }
+}
+
+/* Mobile quick nav styling */
+.mobile-quick-nav {
+    display: none; /* hidden on desktop */
+}
+
+.mobile-quick-nav .btn {
+    padding: 12px 16px;
+    font-weight: 500;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.mobile-quick-nav .btn:active {
+    transform: scale(0.98);
+}
+
+.mobile-quick-nav .badge {
+    font-size: 0.7rem;
+    padding: 4px 8px;
 }
 
 .like-btn.active {
@@ -1198,5 +1361,281 @@ document.addEventListener('DOMContentLoaded', function(){
         padding-bottom: .8rem;
     }
 }
+
+/* ===== Mobile Bottom Navigation Bar ===== */
+.mobile-bottom-nav {
+    display: none; /* Hidden on desktop */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #e0e0e0;
+    padding: 8px 0;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); /* iOS safe area */
+    z-index: 1030;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 767px) {
+    .mobile-bottom-nav {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+    }
+    
+    /* Add padding at bottom of page to account for fixed nav */
+    .dashboard-layout {
+        padding-bottom: 70px;
+    }
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 6px 12px;
+    color: #666;
+    font-size: 0.7rem;
+    transition: all 0.2s;
+    position: relative;
+    min-width: 60px;
+    cursor: pointer;
+}
+
+.mobile-nav-item i {
+    font-size: 1.3rem;
+    margin-bottom: 2px;
+}
+
+.mobile-nav-item span {
+    font-weight: 500;
+}
+
+.mobile-nav-item.active {
+    color: #e91e63;
+}
+
+.mobile-nav-item.active i {
+    transform: scale(1.1);
+}
+
+.mobile-nav-item:active {
+    transform: scale(0.95);
+}
+
+/* Badge on nav item */
+.nav-badge {
+    position: absolute;
+    top: 0;
+    right: 8px;
+    background: #e91e63;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 10px;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* ===== Mobile Slide Panels ===== */
+.mobile-slide-panel {
+    display: none;
+    position: fixed;
+    top: 0;
+    bottom: 60px;
+    width: 85%;
+    max-width: 350px;
+    background: #fff;
+    z-index: 1060;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+}
+
+.mobile-panel-left {
+    left: 0;
+    transform: translateX(-100%);
+}
+
+.mobile-panel-right {
+    right: 0;
+    left: auto;
+    transform: translateX(100%);
+}
+
+.mobile-slide-panel.open {
+    transform: translateX(0) !important;
+}
+
+.mobile-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea, #e91e63);
+    color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.mobile-panel-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.mobile-panel-content {
+    padding: 15px;
+}
+
+.mobile-panel-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1055;
+}
+
+.mobile-panel-overlay.show {
+    display: block;
+}
+
+/* Ensure links inside panels are clickable */
+.mobile-slide-panel a,
+.mobile-slide-panel button {
+    position: relative;
+    z-index: 1;
+}
+
+.mobile-panel-content a.btn {
+    display: inline-block;
+    cursor: pointer;
+}
+
+@media (max-width: 767px) {
+    .mobile-slide-panel {
+        display: block;
+    }
+}
 </style>
+
+<script>
+// Simple Mobile Panel Functions
+function openMobilePanel(side) {
+    var panel = document.getElementById('mobile-panel-' + side);
+    var overlay = document.getElementById('mobile-panel-overlay');
+    
+    if (panel) {
+        panel.classList.add('open');
+    }
+    if (overlay) {
+        overlay.classList.add('show');
+    }
+    document.body.style.overflow = 'hidden';
+    
+    // Update active nav
+    var navItems = document.querySelectorAll('.mobile-nav-item');
+    navItems.forEach(function(item) {
+        item.classList.remove('active');
+    });
+    
+    if (side === 'left') {
+        var onlineBtn = document.getElementById('mobile-nav-online');
+        if (onlineBtn) onlineBtn.classList.add('active');
+    } else {
+        var chatsBtn = document.getElementById('mobile-nav-chats');
+        if (chatsBtn) chatsBtn.classList.add('active');
+    }
+}
+
+function closeMobilePanel(side) {
+    var panel = document.getElementById('mobile-panel-' + side);
+    var overlay = document.getElementById('mobile-panel-overlay');
+    
+    if (panel) {
+        panel.classList.remove('open');
+    }
+    if (overlay) {
+        overlay.classList.remove('show');
+    }
+    document.body.style.overflow = '';
+    
+    // Reset to Feed active
+    var navItems = document.querySelectorAll('.mobile-nav-item');
+    navItems.forEach(function(item) {
+        item.classList.remove('active');
+    });
+    var feedBtn = document.getElementById('mobile-nav-feed');
+    if (feedBtn) feedBtn.classList.add('active');
+}
+
+function closeAllMobilePanels() {
+    closeMobilePanel('left');
+    closeMobilePanel('right');
+}
+
+// Attach click handlers when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    var navOnline = document.getElementById('mobile-nav-online');
+    var navMatches = document.getElementById('mobile-nav-matches');
+    var navFeed = document.getElementById('mobile-nav-feed');
+    var navChats = document.getElementById('mobile-nav-chats');
+    var navDiscover = document.getElementById('mobile-nav-discover');
+    
+    if (navOnline) {
+        navOnline.onclick = function() {
+            openMobilePanel('left');
+        };
+    }
+    
+    if (navMatches) {
+        navMatches.onclick = function() {
+            openMobilePanel('left');
+        };
+    }
+    
+    if (navFeed) {
+        navFeed.onclick = function() {
+            closeAllMobilePanels();
+            window.scrollTo(0, 0);
+        };
+    }
+    
+    if (navChats) {
+        navChats.onclick = function() {
+            openMobilePanel('right');
+        };
+    }
+    
+    if (navDiscover) {
+        navDiscover.onclick = function() {
+            window.location.href = '{% url "matching:discover" %}';
+        };
+    }
+    
+    // Debug log
+    console.log('Mobile nav buttons found:', {
+        online: !!navOnline,
+        matches: !!navMatches,
+        feed: !!navFeed,
+        chats: !!navChats,
+        discover: !!navDiscover
+    });
+});
+</script>
 {% endblock %}

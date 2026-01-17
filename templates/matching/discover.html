@@ -1,213 +1,1566 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Discover Matches - LoveConnect{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="fas fa-search-heart"></i> Discover Your Matches</h4>
+<div class="discover-page">
+    <!-- Hero Header -->
+    <div class="discover-header">
+        <div class="header-content">
+            <h1><i class="fas fa-compass"></i> Discover</h1>
+            <p>Find your perfect match</p>
+        </div>
+        <div class="header-stats">
+            <div class="stat-item">
+                <span class="stat-number" id="matches-count">{{ suggested_matches|length }}</span>
+                <span class="stat-label">Matches</span>
             </div>
-            <div class="card-body">
-                <p class="lead mb-4">
-                    Find compatible partners based on your preferences. 
-                    Connect with people who share your interests and relationship goals.
-                </p>
-                
-                <!-- Filter Section -->
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6><i class="fas fa-filter"></i> Your Preferences</h6>
-                                <p class="mb-1"><strong>Gender:</strong> {{ user.get_gender_display }}</p>
-                                <p class="mb-1"><strong>Orientation:</strong> {{ user.orientation|title }}</p>
-                                <p class="mb-0"><strong>Location:</strong> {{ user.location|default:"Not specified" }}</p>
-                            </div>
-                        </div>
+            <div class="stat-item">
+                <span class="stat-number" id="online-count">{{ online_count|default:0 }}</span>
+                <span class="stat-label">Online Now</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">
+                <i class="fas fa-th-large"></i> All
+            </button>
+            <button class="filter-tab" data-filter="online">
+                <i class="fas fa-circle text-success"></i> Online
+            </button>
+            <button class="filter-tab" data-filter="new">
+                <i class="fas fa-sparkles"></i> New
+            </button>
+            <button class="filter-tab" data-filter="popular">
+                <i class="fas fa-fire"></i> Popular
+            </button>
+            <button class="filter-tab" data-filter="compatible">
+                <i class="fas fa-heart"></i> Most Compatible
+            </button>
+        </div>
+        <button class="filter-toggle-btn" id="toggle-filters">
+            <i class="fas fa-sliders-h"></i> Filters
+            <span class="filter-count" id="active-filter-count" style="display:none;">0</span>
+        </button>
+    </div>
+
+    <!-- Collapsible Advanced Filters -->
+    <div class="advanced-filters" id="advanced-filters">
+        <div class="filters-grid">
+            <!-- Age Range -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-birthday-cake"></i> Age Range
+                </label>
+                <div class="range-slider-container">
+                    <input type="range" id="age-min" min="18" max="70" value="18" class="range-slider">
+                    <input type="range" id="age-max" min="18" max="70" value="50" class="range-slider">
+                    <div class="range-values">
+                        <span id="age-min-val">18</span> - <span id="age-max-val">50</span> years
                     </div>
-                    <div class="col-md-8">
-                        <div class="card bg-info text-white">
-                            <div class="card-body">
-                                <h6><i class="fas fa-lightbulb"></i> Matching Tip</h6>
-                                <p class="mb-0">
-                                    You're seeing users who match your gender and orientation preferences. 
-                                    Update your preferences in settings to see different matches.
-                                </p>
-                            </div>
-                        </div>
+                </div>
+            </div>
+
+            <!-- Distance -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-map-marker-alt"></i> Distance
+                </label>
+                <div class="range-slider-container">
+                    <input type="range" id="distance" min="1" max="500" value="100" class="range-slider single">
+                    <div class="range-values">
+                        Within <span id="distance-val">100</span> km
                     </div>
+                </div>
+            </div>
+
+            <!-- Gender -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-venus-mars"></i> Show Me
+                </label>
+                <div class="filter-chips">
+                    <button class="filter-chip active" data-gender="all">All</button>
+                    <button class="filter-chip" data-gender="male">Men</button>
+                    <button class="filter-chip" data-gender="female">Women</button>
+                    <button class="filter-chip" data-gender="other">Other</button>
+                </div>
+            </div>
+
+            <!-- Interests -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-heart"></i> Interests
+                </label>
+                <div class="filter-chips interests-chips">
+                    <button class="filter-chip" data-interest="music">🎵 Music</button>
+                    <button class="filter-chip" data-interest="travel">✈️ Travel</button>
+                    <button class="filter-chip" data-interest="fitness">💪 Fitness</button>
+                    <button class="filter-chip" data-interest="movies">🎬 Movies</button>
+                    <button class="filter-chip" data-interest="food">🍕 Food</button>
+                    <button class="filter-chip" data-interest="gaming">🎮 Gaming</button>
+                    <button class="filter-chip" data-interest="reading">📚 Reading</button>
+                    <button class="filter-chip" data-interest="art">🎨 Art</button>
+                </div>
+            </div>
+
+            <!-- Looking For -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-search-heart"></i> Looking For
+                </label>
+                <div class="filter-chips">
+                    <button class="filter-chip" data-goal="dating">Dating</button>
+                    <button class="filter-chip" data-goal="relationship">Relationship</button>
+                    <button class="filter-chip" data-goal="friendship">Friendship</button>
+                    <button class="filter-chip" data-goal="casual">Casual</button>
+                </div>
+            </div>
+
+            <!-- Verification -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-check-circle"></i> Verification
+                </label>
+                <div class="filter-chips">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="verified-only">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Verified profiles only</span>
+                    </label>
                 </div>
             </div>
         </div>
 
-        <!-- Matches Grid -->
-        <div class="row">
+        <div class="filter-actions">
+            <button class="btn-filter-reset" id="reset-filters">
+                <i class="fas fa-undo"></i> Reset All
+            </button>
+            <button class="btn-filter-apply" id="apply-filters">
+                <i class="fas fa-check"></i> Apply Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Matches Grid (Masonry Style) -->
+    <div class="matches-container" id="matches-container">
+        <div class="masonry-grid" id="masonry-grid">
             {% for match in suggested_matches %}
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100 shadow-sm card-hover">
-                    <div class="card-body text-center">
-                        <!-- Profile Image -->
-                        <div class="position-relative mb-3">
-                            <img src="{{ match.profile_picture.url }}" 
-                                 class="rounded-circle" 
-                                 width="120" 
-                                 height="120" 
-                                 style="object-fit: cover;"
-                                 alt="{{ match.username }}">
-                            {% if match.is_online %}
-                            <span class="position-absolute bottom-0 end-0 p-2 bg-success border border-white rounded-circle">
-                                <span class="visually-hidden">Online</span>
-                            </span>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Basic Info -->
-                        <h5 class="card-title">{{ match.username }}</h5>
-                        <p class="text-muted mb-2">
-                            {{ match.get_gender_display }}, {{ match.orientation }}
-                            {% if match.age %}
-                            · {{ match.age }} years
-                            {% endif %}
-                        </p>
-                        
-                        {% if match.location %}
-                        <p class="text-muted mb-3">
-                            <i class="fas fa-map-marker-alt"></i> {{ match.location }}
-                        </p>
-                        {% endif %}
-                        
-                        <!-- Bio Preview -->
-                        {% if match.bio %}
-                        <p class="card-text small text-muted mb-3">
-                            {{ match.bio|truncatewords:15 }}
-                        </p>
-                        {% endif %}
-                        
-                        <!-- Profile Details -->
-                        <div class="small text-muted mb-3 text-start">
-                            {% if match.profile.occupation %}
-                            <div><strong>Work:</strong> {{ match.profile.occupation }}</div>
-                            {% endif %}
-                            {% if match.profile.education %}
-                            <div><strong>Education:</strong> {{ match.profile.education }}</div>
-                            {% endif %}
-                            {% if match.profile.relationship_goals %}
-                            <div><strong>Looking for:</strong> {{ match.profile.relationship_goals }}</div>
-                            {% endif %}
-                        </div>
+            <div class="match-card {% cycle 'size-normal' 'size-tall' 'size-normal' 'size-wide' 'size-normal' %}" 
+                 data-username="{{ match.username }}"
+                 data-online="{{ match.is_online|yesno:'true,false' }}"
+                 data-compatibility="{{ match.compatibility_score|default:85 }}">
+                
+                <!-- Card Image -->
+                <div class="card-image">
+                    <img src="{{ match.profile_picture.url }}" alt="{{ match.username }}" loading="lazy">
+                    
+                    <!-- Gradient Overlay -->
+                    <div class="card-gradient"></div>
+                    
+                    <!-- Online Badge -->
+                    {% if match.is_online %}
+                    <div class="online-badge pulse">
+                        <span class="online-dot"></span>
+                        <span class="online-text">Online</span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Compatibility Badge -->
+                    <div class="compatibility-badge">
+                        <span class="compat-score">{{ match.compatibility_score|default:85 }}%</span>
+                        <span class="compat-label">Match</span>
+                    </div>
+
+                    <!-- New Badge (for recently joined) -->
+                    {% if match.is_new %}
+                    <div class="new-badge">
+                        <i class="fas fa-sparkles"></i> NEW
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Quick Actions Overlay -->
+                    <div class="quick-actions">
+                        <button class="action-btn btn-pass" data-username="{{ match.username }}" title="Pass">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <button class="action-btn btn-superlike" data-username="{{ match.username }}" title="Superlike">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <button class="action-btn btn-like" data-username="{{ match.username }}" title="Like">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Card Info -->
+                <div class="card-info">
+                    <div class="info-header">
+                        <h3 class="match-name">
+                            <a href="{% url 'users:profile_view' match.username %}">{{ match.username }}</a>
+                            {% if match.is_verified %}<i class="fas fa-check-circle verified-icon"></i>{% endif %}
+                        </h3>
+                        <span class="match-age">{{ match.age|default:"25" }}</span>
                     </div>
                     
-                    <!-- Action Buttons -->
-                    <div class="card-footer">
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <a href="{% url 'users:profile_view' match.username %}" 
-                                   class="btn btn-outline-primary btn-sm w-100">
-                                    <i class="fas fa-eye"></i> Profile
-                                </a>
-                            </div>
-                            <div class="col-6">
-                                <a href="{% url 'chat:chat_room' match.username %}" 
-                                   class="btn btn-primary btn-sm w-100">
-                                    <i class="fas fa-comment"></i> Chat
-                                </a>
-                            </div>
-                        </div>
-                        
-                        {% if match.profile.interests %}
-                        <div class="mt-2">
-                            <small class="text-muted">
-                                <strong>Interests:</strong> {{ match.profile.interests|truncatewords:5 }}
-                            </small>
-                        </div>
+                    <div class="match-meta">
+                        {% if match.location %}
+                        <span class="meta-item">
+                            <i class="fas fa-map-marker-alt"></i> {{ match.location }}
+                        </span>
                         {% endif %}
+                        <span class="meta-item">
+                            <i class="fas fa-{% if match.gender == 'M' %}mars{% elif match.gender == 'F' %}venus{% else %}genderless{% endif %}"></i>
+                            {{ match.get_gender_display }}
+                        </span>
+                    </div>
+                    
+                    {% if match.bio %}
+                    <p class="match-bio">{{ match.bio|truncatewords:12 }}</p>
+                    {% endif %}
+                    
+                    <!-- Interest Tags -->
+                    <div class="interest-tags">
+                        {% if match.profile.interests %}
+                            {% for interest in match.profile.interests_list|slice:":4" %}
+                            <span class="interest-tag">{{ interest }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="interest-tag">💬 Chat</span>
+                            <span class="interest-tag">☕ Coffee</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Card Actions -->
+                    <div class="card-actions">
+                        <a href="{% url 'users:profile_view' match.username %}" class="btn-card btn-view">
+                            <i class="fas fa-user"></i> View
+                        </a>
+                        <a href="{% url 'chat:chat_room' match.username %}" class="btn-card btn-chat">
+                            <i class="fas fa-comment"></i> Chat
+                        </a>
                     </div>
                 </div>
             </div>
             {% empty %}
-            <div class="col-12 text-center py-5">
-                <i class="fas fa-users fa-4x text-muted mb-3"></i>
-                <h4>No matches found</h4>
-                <p class="text-muted mb-4">
-                    We couldn't find any matches based on your current preferences.
-                </p>
-                <div class="d-grid gap-2 d-md-block">
-                    <a href="{% url 'users:settings' %}" class="btn btn-primary me-md-2">
-                        <i class="fas fa-cog"></i> Adjust Preferences
-                    </a>
-                    <a href="{% url 'users:search' %}" class="btn btn-outline-primary">
-                        <i class="fas fa-search"></i> Search Users
-                    </a>
+            <div class="no-matches">
+                <div class="no-matches-content">
+                    <div class="no-matches-icon">
+                        <i class="fas fa-heart-broken"></i>
+                    </div>
+                    <h3>No matches found</h3>
+                    <p>Try adjusting your filters or check back later for new members!</p>
+                    <div class="no-matches-actions">
+                        <button class="btn-primary" id="reset-all-filters">
+                            <i class="fas fa-undo"></i> Reset Filters
+                        </button>
+                        <a href="{% url 'users:settings' %}" class="btn-secondary">
+                            <i class="fas fa-cog"></i> Update Preferences
+                        </a>
+                    </div>
                 </div>
             </div>
             {% endfor %}
         </div>
+        
+        <!-- Loading Spinner for Infinite Scroll -->
+        <div class="loading-spinner" id="loading-spinner" style="display: none;">
+            <div class="spinner">
+                <div class="bounce1"></div>
+                <div class="bounce2"></div>
+                <div class="bounce3"></div>
+            </div>
+            <span>Loading more matches...</span>
+        </div>
+        
+        <!-- End of Results -->
+        <div class="end-of-results" id="end-of-results" style="display: none;">
+            <i class="fas fa-check-circle"></i>
+            <span>You've seen all matches! Check back later.</span>
+        </div>
+    </div>
+</div>
 
-        <!-- Load More Button -->
-        {% if suggested_matches %}
-        <div class="text-center mt-4">
-            <button class="btn btn-outline-primary" id="loadMore">
-                <i class="fas fa-sync-alt"></i> Load More Matches
+<!-- Match Success Modal -->
+<div class="match-modal" id="match-modal">
+    <div class="match-modal-content">
+        <div class="match-animation">
+            <div class="heart-burst">
+                <i class="fas fa-heart"></i>
+            </div>
+        </div>
+        <h2>It's a Match! 🎉</h2>
+        <p>You and <strong id="matched-username"></strong> like each other!</p>
+        <div class="match-modal-actions">
+            <a href="#" id="send-message-btn" class="btn-primary">
+                <i class="fas fa-paper-plane"></i> Send Message
+            </a>
+            <button class="btn-secondary" id="keep-browsing-btn">
+                Keep Browsing
             </button>
         </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.getElementById('loadMore').addEventListener('click', function() {
-    const button = this;
-    const currentCount = document.querySelectorAll('.col-md-6.col-lg-4.mb-4').length;
-    
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-    button.disabled = true;
-    
-    // Simulate loading more matches (in a real app, this would be an AJAX call)
-    setTimeout(() => {
-        // This would be replaced with actual AJAX call to load more matches
-        alert('Loading more matches... This would fetch additional matches from the server.');
-        button.innerHTML = '<i class="fas fa-sync-alt"></i> Load More Matches';
-        button.disabled = false;
-    }, 1500);
-});
+(function(){
+    const csrftoken = '{{ csrf_token }}';
+    let currentPage = 1;
+    let isLoading = false;
+    let hasMoreResults = true;
+    let currentFilter = 'all';
+    let activeFilters = {};
+
+    // DOM Elements
+    const filterToggle = document.getElementById('toggle-filters');
+    const filtersPanel = document.getElementById('advanced-filters');
+    const grid = document.getElementById('masonry-grid');
+    const spinner = document.getElementById('loading-spinner');
+    const endMessage = document.getElementById('end-of-results');
+    const matchesCount = document.getElementById('matches-count');
+    const onlineCount = document.getElementById('online-count');
+
+    // Toggle Filters Panel
+    filterToggle?.addEventListener('click', () => {
+        filtersPanel.classList.toggle('open');
+        filterToggle.classList.toggle('active');
+    });
+
+    // Collect current filter values
+    function getFilterParams() {
+        const params = new URLSearchParams();
+        
+        // Filter type (tab)
+        params.append('filter', currentFilter);
+        
+        // Age range
+        const ageMin = document.getElementById('age-min');
+        const ageMax = document.getElementById('age-max');
+        if (ageMin && ageMin.value !== '18') params.append('age_min', ageMin.value);
+        if (ageMax && ageMax.value !== '50') params.append('age_max', ageMax.value);
+        
+        // Gender
+        const activeGender = document.querySelector('.filter-chip[data-gender].active');
+        if (activeGender && activeGender.dataset.gender !== 'all') {
+            params.append('gender', activeGender.dataset.gender);
+        }
+        
+        // Interests
+        document.querySelectorAll('.filter-chip[data-interest].active').forEach(chip => {
+            params.append('interests', chip.dataset.interest);
+        });
+        
+        // Goals
+        document.querySelectorAll('.filter-chip[data-goal].active').forEach(chip => {
+            params.append('goals', chip.dataset.goal);
+        });
+        
+        // Verified only
+        const verifiedOnly = document.getElementById('verified-only');
+        if (verifiedOnly && verifiedOnly.checked) {
+            params.append('verified_only', 'true');
+        }
+        
+        return params;
+    }
+
+    // Load matches via AJAX
+    function loadMatches(page = 1, append = false) {
+        if (isLoading) return;
+        
+        isLoading = true;
+        spinner.style.display = 'flex';
+        endMessage.style.display = 'none';
+        
+        const params = getFilterParams();
+        params.append('page', page);
+        params.append('ajax', '1');
+        
+        fetch(`/matching/discover/?${params.toString()}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (!append) {
+                    // Clear existing cards
+                    grid.innerHTML = '';
+                }
+                
+                if (data.html && data.html.trim()) {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = data.html;
+                    
+                    Array.from(temp.children).forEach((card, i) => {
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateY(30px)';
+                        grid.appendChild(card);
+                        
+                        // Stagger animation
+                        setTimeout(() => {
+                            card.style.transition = 'all 0.4s ease';
+                            card.style.opacity = '1';
+                            card.style.transform = '';
+                        }, 50 + i * 80);
+                    });
+                }
+                
+                // Update stats
+                if (data.total_count !== undefined && matchesCount) {
+                    matchesCount.textContent = data.total_count;
+                }
+                if (data.online_count !== undefined && onlineCount) {
+                    onlineCount.textContent = data.online_count;
+                }
+                
+                currentPage = data.page;
+                hasMoreResults = data.has_more;
+                
+                if (!hasMoreResults) {
+                    endMessage.style.display = 'flex';
+                }
+            }
+        })
+        .catch(err => console.error('Load matches error:', err))
+        .finally(() => {
+            isLoading = false;
+            spinner.style.display = 'none';
+        });
+    }
+
+    // Filter Tabs - Now with AJAX
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            currentFilter = this.dataset.filter;
+            currentPage = 1;
+            hasMoreResults = true;
+            
+            // Load with new filter
+            loadMatches(1, false);
+        });
+    });
+
+    // Filter Chips
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+            if (this.dataset.gender) {
+                // Single select for gender
+                this.closest('.filter-chips').querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            }
+            this.classList.toggle('active');
+            updateFilterCount();
+        });
+    });
+
+    // Range Sliders
+    const ageMin = document.getElementById('age-min');
+    const ageMax = document.getElementById('age-max');
+    const ageMinVal = document.getElementById('age-min-val');
+    const ageMaxVal = document.getElementById('age-max-val');
+    const distance = document.getElementById('distance');
+    const distanceVal = document.getElementById('distance-val');
+
+    ageMin?.addEventListener('input', function() {
+        ageMinVal.textContent = this.value;
+        if (parseInt(ageMax.value) < parseInt(this.value)) {
+            ageMax.value = this.value;
+            ageMaxVal.textContent = this.value;
+        }
+    });
+
+    ageMax?.addEventListener('input', function() {
+        ageMaxVal.textContent = this.value;
+        if (parseInt(ageMin.value) > parseInt(this.value)) {
+            ageMin.value = this.value;
+            ageMinVal.textContent = this.value;
+        }
+    });
+
+    distance?.addEventListener('input', function() {
+        distanceVal.textContent = this.value;
+    });
+
+    function updateFilterCount() {
+        const activeChips = document.querySelectorAll('.filter-chip.active:not([data-gender="all"])').length;
+        const countBadge = document.getElementById('active-filter-count');
+        if (activeChips > 0) {
+            countBadge.textContent = activeChips;
+            countBadge.style.display = '';
+        } else {
+            countBadge.style.display = 'none';
+        }
+    }
+
+    // Reset Filters
+    document.getElementById('reset-filters')?.addEventListener('click', () => {
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        document.querySelector('[data-gender="all"]')?.classList.add('active');
+        if (ageMin) { ageMin.value = 18; ageMinVal.textContent = '18'; }
+        if (ageMax) { ageMax.value = 50; ageMaxVal.textContent = '50'; }
+        if (distance) { distance.value = 100; distanceVal.textContent = '100'; }
+        const verifiedOnly = document.getElementById('verified-only');
+        if (verifiedOnly) verifiedOnly.checked = false;
+        updateFilterCount();
+    });
+
+    // Apply Filters - Now with AJAX
+    document.getElementById('apply-filters')?.addEventListener('click', () => {
+        filtersPanel.classList.remove('open');
+        filterToggle.classList.remove('active');
+        
+        // Reset pagination
+        currentPage = 1;
+        hasMoreResults = true;
+        
+        // Load with new filters
+        loadMatches(1, false);
+    });
+
+    // Reset all filters button (in no-matches section)
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('#reset-all-filters')) {
+            document.getElementById('reset-filters')?.click();
+            currentFilter = 'all';
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.filter-tab[data-filter="all"]')?.classList.add('active');
+            loadMatches(1, false);
+        }
+    });
+
+    // Quick Action Buttons (Like/Pass/Superlike)
+    function postAction(url) {
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Accept': 'application/json'
+            }
+        }).then(r => r.json());
+    }
+
+    function animateCardOut(card, direction) {
+        card.style.transition = 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        card.style.transform = direction === 'left' 
+            ? 'translateX(-150%) rotate(-20deg)' 
+            : direction === 'right' 
+                ? 'translateX(150%) rotate(20deg)' 
+                : 'translateY(-150%) scale(1.1)';
+        card.style.opacity = '0';
+        setTimeout(() => card.remove(), 400);
+    }
+
+    function showMatchModal(username) {
+        const modal = document.getElementById('match-modal');
+        document.getElementById('matched-username').textContent = username;
+        document.getElementById('send-message-btn').href = `/chat/${username}/`;
+        modal.classList.add('show');
+    }
+
+    document.getElementById('keep-browsing-btn')?.addEventListener('click', () => {
+        document.getElementById('match-modal').classList.remove('show');
+    });
+
+    document.getElementById('match-modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'match-modal') {
+            e.target.classList.remove('show');
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const passBtn = e.target.closest('.btn-pass');
+        const likeBtn = e.target.closest('.btn-like');
+        const superlikeBtn = e.target.closest('.btn-superlike');
+        
+        if (passBtn) {
+            const card = passBtn.closest('.match-card');
+            const username = passBtn.dataset.username;
+            postAction(`/matching/dislike/${username}/`).then(res => {
+                if (res.success) animateCardOut(card, 'left');
+            });
+        }
+        
+        if (likeBtn) {
+            const card = likeBtn.closest('.match-card');
+            const username = likeBtn.dataset.username;
+            likeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            postAction(`/matching/like/${username}/`).then(res => {
+                if (res.success) {
+                    if (res.matched) {
+                        showMatchModal(username);
+                    }
+                    animateCardOut(card, 'right');
+                }
+            }).catch(() => {
+                likeBtn.innerHTML = '<i class="fas fa-heart"></i>';
+            });
+        }
+        
+        if (superlikeBtn) {
+            const card = superlikeBtn.closest('.match-card');
+            const username = superlikeBtn.dataset.username;
+            superlikeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            postAction(`/matching/superlike/${username}/`).then(res => {
+                if (res.success) {
+                    if (res.matched) {
+                        showMatchModal(username);
+                    }
+                    animateCardOut(card, 'up');
+                }
+            }).catch(() => {
+                superlikeBtn.innerHTML = '<i class="fas fa-star"></i>';
+            });
+        }
+    });
+
+    // Infinite Scroll - Now with filters
+    function loadMoreMatches() {
+        if (isLoading || !hasMoreResults) return;
+        loadMatches(currentPage + 1, true);
+    }
+
+    // Intersection Observer for infinite scroll
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMoreResults && !isLoading) {
+            loadMoreMatches();
+        }
+    }, { rootMargin: '200px' });
+
+    if (spinner) observer.observe(spinner);
+
+    // Stagger animation on initial load
+    document.querySelectorAll('.match-card').forEach((card, i) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.4s ease';
+            card.style.opacity = '1';
+            card.style.transform = '';
+        }, 100 + i * 80);
+    });
+})();
 </script>
 
 <style>
-.card-hover {
-    transition: transform 0.2s, box-shadow 0.2s;
+/* Discover Page Layout */
+.discover-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 15px;
 }
 
-.card-hover:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+/* Hero Header */
+.discover-header {
+    background: linear-gradient(135deg, #667eea 0%, #e91e63 100%);
+    border-radius: 20px;
+    padding: 30px 40px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
 }
 
-.position-relative {
+.header-content h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.header-content p {
+    margin: 5px 0 0;
+    opacity: 0.9;
+}
+
+.header-stats {
+    display: flex;
+    gap: 30px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+/* Filter Bar */
+.filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.filter-tab {
+    background: #f5f5f5;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-tab:hover {
+    background: #e8e8e8;
+}
+
+.filter-tab.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.filter-tab .text-success {
+    font-size: 0.5rem;
+}
+
+.filter-toggle-btn {
+    background: white;
+    border: 2px solid #e91e63;
+    color: #e91e63;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-toggle-btn:hover,
+.filter-toggle-btn.active {
+    background: #e91e63;
+    color: white;
+}
+
+.filter-count {
+    background: #e91e63;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+}
+
+.filter-toggle-btn.active .filter-count {
+    background: white;
+    color: #e91e63;
+}
+
+/* Advanced Filters Panel */
+.advanced-filters {
+    background: white;
+    border-radius: 16px;
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin-bottom: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.advanced-filters.open {
+    padding: 25px;
+    max-height: 600px;
+    margin-bottom: 20px;
+}
+
+.filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.filter-group {
+    margin-bottom: 10px;
+}
+
+.filter-label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+.filter-label i {
+    color: #e91e63;
+    margin-right: 8px;
+}
+
+/* Range Slider */
+.range-slider-container {
+    position: relative;
+    padding: 10px 0;
+}
+
+.range-slider {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    background: linear-gradient(to right, #e91e63, #667eea);
+    border-radius: 3px;
+    outline: none;
+}
+
+.range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 3px solid #e91e63;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.range-values {
+    text-align: center;
+    margin-top: 10px;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.range-values span {
+    font-weight: 700;
+    color: #e91e63;
+}
+
+/* Filter Chips */
+.filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-chip {
+    background: #f5f5f5;
+    border: 2px solid transparent;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-chip:hover {
+    background: #ffe8ee;
+    border-color: #e91e63;
+}
+
+.filter-chip.active {
+    background: #e91e63;
+    color: white;
+    border-color: #e91e63;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.toggle-switch input {
+    display: none;
+}
+
+.toggle-slider {
+    width: 50px;
+    height: 26px;
+    background: #ccc;
+    border-radius: 13px;
+    position: relative;
+    transition: 0.3s;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: #e91e63;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    left: 27px;
+}
+
+.toggle-label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Filter Actions */
+.filter-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.btn-filter-reset {
+    background: transparent;
+    border: 2px solid #999;
+    color: #666;
+    padding: 10px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-filter-reset:hover {
+    border-color: #e91e63;
+    color: #e91e63;
+}
+
+.btn-filter-apply {
+    background: linear-gradient(135deg, #e91e63 0%, #ff6b9d 100%);
+    border: none;
+    color: white;
+    padding: 10px 30px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-filter-apply:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(233, 30, 99, 0.4);
+}
+
+/* Masonry Grid */
+.masonry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    grid-auto-flow: dense;
+}
+
+/* Match Card */
+.match-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
     position: relative;
 }
 
-.position-absolute {
+.match-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.match-card.size-tall {
+    grid-row: span 2;
+}
+
+.match-card.size-wide {
+    grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+    .match-card.size-wide,
+    .match-card.size-tall {
+        grid-column: span 1;
+        grid-row: span 1;
+    }
+}
+
+/* Card Image */
+.card-image {
+    position: relative;
+    height: 280px;
+    overflow: hidden;
+}
+
+.size-tall .card-image {
+    height: 360px;
+}
+
+.card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.match-card:hover .card-image img {
+    transform: scale(1.05);
+}
+
+.card-gradient {
     position: absolute;
-}
-
-.bottom-0 {
     bottom: 0;
-}
-
-.end-0 {
+    left: 0;
     right: 0;
+    height: 50%;
+    background: linear-gradient(transparent, rgba(0,0,0,0.6));
+    pointer-events: none;
 }
 
-.bg-success {
-    background-color: #28a745 !important;
+/* Badges */
+.online-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(40, 167, 69, 0.9);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
-.border-white {
-    border-color: white !important;
+.online-badge.pulse .online-dot {
+    animation: pulse 2s infinite;
+}
+
+.online-dot {
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.compatibility-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 12px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.compat-score {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #e91e63;
+}
+
+.compat-label {
+    font-size: 0.65rem;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.new-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: linear-gradient(135deg, #ffd700, #ffaa00);
+    color: #333;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Quick Actions Overlay */
+.quick-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+.match-card:hover .quick-actions {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.action-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.action-btn:hover {
+    transform: scale(1.15);
+}
+
+.btn-pass {
+    background: white;
+    color: #dc3545;
+}
+
+.btn-pass:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-like {
+    background: linear-gradient(135deg, #e91e63 0%, #ff6b9d 100%);
+    color: white;
+}
+
+.btn-like:hover {
+    box-shadow: 0 6px 25px rgba(233, 30, 99, 0.5);
+}
+
+.btn-superlike {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-superlike:hover {
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+}
+
+/* Card Info */
+.card-info {
+    padding: 18px;
+}
+
+.info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.match-name {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.match-name a {
+    color: #333;
+    text-decoration: none;
+}
+
+.match-name a:hover {
+    color: #e91e63;
+}
+
+.verified-icon {
+    color: #1da1f2;
+    font-size: 0.9rem;
+    margin-left: 5px;
+}
+
+.match-age {
+    background: #f5f5f5;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #666;
+}
+
+.match-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.meta-item {
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.meta-item i {
+    margin-right: 4px;
+    color: #e91e63;
+}
+
+.match-bio {
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+
+/* Interest Tags */
+.interest-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 15px;
+}
+
+.interest-tag {
+    background: #f0f0f0;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    color: #555;
+}
+
+/* Card Actions */
+.card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-card {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-view {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.btn-view:hover {
+    background: #e0e0e0;
+}
+
+.btn-chat {
+    background: linear-gradient(135deg, #e91e63 0%, #ff6b9d 100%);
+    color: white;
+}
+
+.btn-chat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(233, 30, 99, 0.3);
+}
+
+/* No Matches */
+.no-matches {
+    grid-column: 1 / -1;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.no-matches-icon {
+    font-size: 4rem;
+    color: #ddd;
+    margin-bottom: 20px;
+}
+
+.no-matches h3 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.no-matches p {
+    color: #888;
+    margin-bottom: 25px;
+}
+
+.no-matches-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    padding: 40px;
+    color: #888;
+}
+
+.spinner {
+    display: flex;
+    gap: 8px;
+}
+
+.spinner > div {
+    width: 12px;
+    height: 12px;
+    background: #e91e63;
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.bounce1 { animation-delay: -0.32s; }
+.bounce2 { animation-delay: -0.16s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+
+/* End of Results */
+.end-of-results {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 30px;
+    color: #28a745;
+    font-weight: 500;
+}
+
+/* Match Modal */
+.match-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+}
+
+.match-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.match-modal-content {
+    background: linear-gradient(135deg, #e91e63 0%, #ff6b9d 100%);
+    color: white;
+    padding: 50px;
+    border-radius: 24px;
+    text-align: center;
+    max-width: 420px;
+    transform: scale(0.8);
+    transition: transform 0.3s;
+}
+
+.match-modal.show .match-modal-content {
+    transform: scale(1);
+}
+
+.match-animation {
+    margin-bottom: 20px;
+}
+
+.heart-burst i {
+    font-size: 5rem;
+    animation: heartBurst 0.6s ease-out;
+}
+
+@keyframes heartBurst {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+.match-modal h2 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.match-modal p {
+    opacity: 0.9;
+    margin-bottom: 30px;
+}
+
+.match-modal-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.match-modal .btn-primary {
+    background: white;
+    color: #e91e63;
+    padding: 12px 30px;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.match-modal .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.match-modal .btn-secondary {
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.5);
+    color: white;
+    padding: 12px 30px;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.match-modal .btn-secondary:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, #e91e63 0%, #ff6b9d 100%);
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary {
+    background: #f5f5f5;
+    color: #333;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+/* Fade In Animation */
+.fade-in {
+    animation: fadeIn 0.4s ease forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .discover-header {
+        flex-direction: column;
+        text-align: center;
+        padding: 25px 20px;
+    }
+    
+    .header-stats {
+        margin-top: 20px;
+    }
+    
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-tabs {
+        justify-content: center;
+    }
+    
+    .filter-toggle-btn {
+        justify-content: center;
+    }
+    
+    .filters-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .masonry-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+    }
+    
+    .card-image {
+        height: 200px;
+    }
+    
+    .card-info {
+        padding: 12px;
+    }
+    
+    .match-name {
+        font-size: 1rem;
+    }
+    
+    .quick-actions {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    .action-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 1rem;
+    }
 }
 </style>
 {% endblock %}

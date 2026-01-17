@@ -2,29 +2,148 @@ from django.shortcuts import render, get_object_or_404
 from django.db import models
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
+from django.template.loader import render_to_string
+from django.core.paginator import Paginator
 from .models import UserLike, UserDislike, Match
 from .utils import MatchFinder
 from users.models import CustomUser
 
+
 @login_required
 def discover(request):
-    # Build an ordered queryset first, exclude liked/disliked users, then slice
-    online_users = MatchFinder.get_online_users(request.user)
-
-    # Exclude users already liked or disliked
-    liked_users = UserLike.objects.filter(user=request.user).values_list('liked_user_id', flat=True)
-    disliked_users = UserDislike.objects.filter(user=request.user).values_list('disliked_user_id', flat=True)
-
-    suggested_qs = MatchFinder.get_compatible_users(request.user).order_by('-is_online', '-last_activity')
-    suggested_qs = suggested_qs.exclude(id__in=list(liked_users) + list(disliked_users))
-    suggested_matches = suggested_qs[:20]
+    """
+    Main discover view with support for:
+    - Filter tabs (all, online, new, popular, compatible)
+    - Advanced filters (age, gender, interests, goals)
+    - AJAX pagination for infinite scroll
+    """
+    # Parse filters from request
+    filters = {
+        'filter_type': request.GET.get('filter', 'all'),
+        'age_min': request.GET.get('age_min'),
+        'age_max': request.GET.get('age_max'),
+        'gender': request.GET.get('gender', 'all'),
+        'interests': request.GET.getlist('interests'),
+        'goals': request.GET.getlist('goals'),
+        'verified_only': request.GET.get('verified_only') == 'true',
+    }
     
+    # Get page number
+    page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('per_page', 20))
+    
+    # Check if AJAX request
+    is_ajax = request.GET.get('ajax') == '1' or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    # Get discover results using enhanced MatchFinder
+    results = MatchFinder.get_discover_users(
+        user=request.user,
+        filters=filters,
+        page=page,
+        per_page=per_page
+    )
+    
+    # Convert results to template-friendly format
+    suggested_matches = []
+    for item in results['users']:
+        user_obj = item['user']
+        # Attach computed properties to user object for template access
+        user_obj.compatibility_score = item['compatibility_score']
+        user_obj.computed_age = item['age']
+        user_obj.is_new = item['is_new']
+        user_obj.interests_list = item['interests_list']
+        suggested_matches.append(user_obj)
+    
+    # Get online count for stats
+    online_count = MatchFinder.get_online_users(request.user).count()
+    
+    # For AJAX requests, return JSON with rendered HTML
+    if is_ajax:
+        html = render_to_string(
+            'matching/_match_cards.html',
+            {
+                'suggested_matches': suggested_matches,
+                'user': request.user,
+            },
+            request=request
+        )
+        return JsonResponse({
+            'success': True,
+            'html': html,
+            'has_more': results['has_more'],
+            'total_count': results['total_count'],
+            'page': page,
+        })
+    
+    # Regular page render
     context = {
         'suggested_matches': suggested_matches,
-        'online_users': online_users,
+        'online_count': online_count,
+        'total_count': results['total_count'],
+        'current_filter': filters['filter_type'],
+        'filters': filters,
     }
     return render(request, 'matching/discover.html', context)
+
+
+@login_required
+@require_GET
+def discover_filter(request):
+    """
+    AJAX endpoint for applying advanced filters.
+    Returns filtered users as JSON with rendered HTML cards.
+    """
+    # Parse all filter parameters
+    filters = {
+        'filter_type': request.GET.get('filter', 'all'),
+        'age_min': request.GET.get('age_min'),
+        'age_max': request.GET.get('age_max'),
+        'gender': request.GET.get('gender', 'all'),
+        'interests': request.GET.getlist('interests'),
+        'goals': request.GET.getlist('goals'),
+        'verified_only': request.GET.get('verified_only') == 'true',
+    }
+    
+    page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('per_page', 20))
+    
+    # Get filtered results
+    results = MatchFinder.get_discover_users(
+        user=request.user,
+        filters=filters,
+        page=page,
+        per_page=per_page
+    )
+    
+    # Prepare users for template
+    suggested_matches = []
+    for item in results['users']:
+        user_obj = item['user']
+        user_obj.compatibility_score = item['compatibility_score']
+        user_obj.computed_age = item['age']
+        user_obj.is_new = item['is_new']
+        user_obj.interests_list = item['interests_list']
+        suggested_matches.append(user_obj)
+    
+    # Render cards HTML
+    html = render_to_string(
+        'matching/_match_cards.html',
+        {
+            'suggested_matches': suggested_matches,
+            'user': request.user,
+        },
+        request=request
+    )
+    
+    return JsonResponse({
+        'success': True,
+        'html': html,
+        'has_more': results['has_more'],
+        'total_count': results['total_count'],
+        'page': page,
+        'online_count': MatchFinder.get_online_users(request.user).count(),
+    })
 
 @login_required
 @require_POST

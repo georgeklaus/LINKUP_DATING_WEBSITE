@@ -67,7 +67,7 @@ def chat_room(request, username):
         # creating a new conversation requires compatibility
         compatible_users = MatchFinder.get_compatible_users(request.user)
         if other_user not in compatible_users:
-            messages.error(request, "You cannot chat with this user")
+            messages.error(request, f"You cannot chat with {other_user.username}. You can only chat with users who match your preferences.")
             return redirect('dashboard')
         chat_room = ChatRoom.objects.create(name=room_name)
         chat_room.participants.add(request.user, other_user)
