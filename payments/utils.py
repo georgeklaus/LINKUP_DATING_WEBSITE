@@ -23,26 +23,76 @@ def process_raw_webhook(webhook: RawWebhook) -> bool:
     """
     data = webhook.payload or {}
     merchant_request_id = data.get('MerchantRequestID') or data.get('merchant_request_id') or ''
-    result_code = data.get('ResultCode')
-    mpesa_receipt_number = data.get('MpesaReceiptNumber')
+    # MegaPay uses ResponseCode, but keep ResultCode check for backward compatibility
+    result_code = data.get('ResponseCode') if data.get('ResponseCode') is not None else data.get('ResultCode')
+    mpesa_receipt_number = data.get('TransactionReceipt') or data.get('MpesaReceiptNumber')
+    transaction_reference = data.get('TransactionReference') or ''
 
+    # ResponseCode 0 means success
     if result_code != 0:
-        logger.info('Webhook %s has non-success ResultCode=%s', webhook.pk, result_code)
+        logger.info('Webhook %s has non-success ResponseCode=%s (%s)', 
+                    webhook.pk, result_code, data.get('ResponseDescription', ''))
+        
+        # Try to find and mark the transaction as failed
+        # First try by MerchantRequestID, then by TransactionReference
+        txn = None
+        if merchant_request_id:
+            txn = Transaction.objects.filter(mpesa_code=merchant_request_id, status='pending').first()
+        if not txn and transaction_reference:
+            txn = Transaction.objects.filter(mpesa_code=transaction_reference, status='pending').first()
+        
+        if txn:
+            txn.status = 'failed'
+            txn.save(update_fields=['status'])
+            webhook.transaction = txn
+            logger.info('Marked transaction %s as failed due to ResponseCode %s', txn.pk, result_code)
+        
         webhook.processed = True
         webhook.processed_at = timezone.now()
-        webhook.save(update_fields=['processed', 'processed_at'])
+        webhook.save(update_fields=['transaction', 'processed', 'processed_at'])
         return False
 
     with db_transaction.atomic():
-        pending_qs = Transaction.objects.select_for_update().filter(
-            mpesa_code=merchant_request_id,
-            status='pending'
-        ).order_by('created_at')
-
-        txn = pending_qs.first()
+        # Try to find pending transaction in order of preference:
+        # 1. TransactionReference (our original ref like COINS_...)
+        # 2. TransactionID (MegaPay's PFXID)
+        # 3. MerchantRequestID
+        txn = None
+        transaction_id = data.get('TransactionID') or ''
+        
+        # Our reference is stored in mpesa_code field
+        if transaction_reference:
+            pending_qs = Transaction.objects.select_for_update().filter(
+                mpesa_code=transaction_reference,
+                status='pending'
+            ).order_by('created_at')
+            txn = pending_qs.first()
+            if txn:
+                logger.info('Found transaction %s by TransactionReference: %s', txn.pk, transaction_reference)
+        
+        # Fallback to TransactionID (MegaPay's PFXID - may have been stored if we overwrote)
+        if not txn and transaction_id:
+            pending_qs = Transaction.objects.select_for_update().filter(
+                mpesa_code=transaction_id,
+                status='pending'
+            ).order_by('created_at')
+            txn = pending_qs.first()
+            if txn:
+                logger.info('Found transaction %s by TransactionID: %s', txn.pk, transaction_id)
+        
+        # Fallback to MerchantRequestID
+        if not txn and merchant_request_id:
+            pending_qs = Transaction.objects.select_for_update().filter(
+                mpesa_code=merchant_request_id,
+                status='pending'
+            ).order_by('created_at')
+            txn = pending_qs.first()
+            if txn:
+                logger.info('Found transaction %s by MerchantRequestID: %s', txn.pk, merchant_request_id)
+        
         if not txn:
-            matches = Transaction.objects.filter(mpesa_code=merchant_request_id).count()
-            logger.warning('No pending transaction for MerchantRequestID %s (matches=%d)', merchant_request_id, matches)
+            logger.warning('No pending transaction found. TransactionRef=%s, TransactionID=%s, MerchantRequestID=%s', 
+                          transaction_reference, transaction_id, merchant_request_id)
             # mark webhook processed for auditing so admin can inspect
             webhook.processed = True
             webhook.processed_at = timezone.now()

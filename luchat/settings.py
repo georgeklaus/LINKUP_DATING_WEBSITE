@@ -128,6 +128,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # MegaPay settings (loaded from .env via python-decouple)
 MEGAPAY_API_KEY = config('MEGAPAY_API_KEY', default='')
+MEGAPAY_EMAIL = config('MEGAPAY_EMAIL', default='')
 MEGAPAY_BASE_URL = config('MEGAPAY_BASE_URL', default='')
 
 # Webhook verification: set a shared secret provided by the payment gateway

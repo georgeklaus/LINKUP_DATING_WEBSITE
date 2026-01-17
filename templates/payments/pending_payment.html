@@ -6,41 +6,91 @@
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card shadow">
-            <div class="card-header bg-warning text-dark">
-                <h4 class="mb-0"><i class="fas fa-hourglass-half"></i> Payment Pending</h4>
+            <div class="card-header {% if transaction.status == 'completed' %}bg-success text-white{% elif transaction.status == 'failed' %}bg-danger text-white{% else %}bg-warning text-dark{% endif %}">
+                <h4 class="mb-0">
+                    {% if transaction.status == 'completed' %}
+                    <i class="fas fa-check-circle"></i> Payment Successful!
+                    {% elif transaction.status == 'failed' %}
+                    <i class="fas fa-times-circle"></i> Payment Failed
+                    {% else %}
+                    <i class="fas fa-hourglass-half"></i> Waiting for Payment...
+                    {% endif %}
+                </h4>
             </div>
             <div class="card-body text-center">
-                <p class="mb-3">Transaction reference: <strong>{{ transaction.mpesa_code }}</strong></p>
-                <p class="text-muted">Status: <strong>{{ transaction.status }}</strong></p>
-                <p class="text-muted">Amount: <strong>{{ transaction.amount }} KES</strong></p>
-
-                <div class="d-grid gap-2">
-                    <button id="simulate-btn" class="btn btn-primary btn-lg">Simulate M-Pesa Prompt (Enter PIN)</button>
-                    <a href="{% url 'payments:payment_failed' %}" class="btn btn-outline-secondary">Cancel</a>
+                {% if transaction.status == 'pending' %}
+                <div class="spinner-border text-warning mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
+                <p class="lead">Check your phone for the M-Pesa prompt</p>
+                <p class="text-muted">Enter your PIN to complete the payment</p>
+                {% endif %}
+                
+                <hr>
+                <p class="mb-2">Amount: <strong>{{ transaction.amount }} KES</strong></p>
+                <p class="mb-2">Coins: <strong>{{ transaction.coins }}</strong></p>
+                <p class="mb-2">Phone: <strong>{{ transaction.phone_number }}</strong></p>
+                <p class="mb-2">Status: <span id="status-badge" class="badge {% if transaction.status == 'completed' %}bg-success{% elif transaction.status == 'failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ transaction.status|upper }}</span></p>
+                <p class="text-muted small">Ref: {{ transaction.mpesa_code }}</p>
 
-                <div id="result" class="mt-3"></div>
+                {% if transaction.status == 'completed' %}
+                <div class="alert alert-success mt-3">
+                    <i class="fas fa-coins"></i> {{ transaction.coins }} coins have been added to your account!
+                </div>
+                <a href="{% url 'dashboard' %}" class="btn btn-success btn-lg">Go to Dashboard</a>
+                {% elif transaction.status == 'failed' %}
+                <div class="alert alert-danger mt-3">
+                    Payment was not completed. Please try again.
+                </div>
+                <a href="{% url 'payments:buy_coins' %}" class="btn btn-primary">Try Again</a>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Go to Dashboard</a>
+                {% else %}
+                <div class="mt-3">
+                    <a href="{% url 'payments:buy_coins' %}" class="btn btn-outline-secondary">Cancel & Go Back</a>
+                </div>
+                <p class="text-muted small mt-3">This page will update automatically when payment is complete.</p>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
+{% if transaction.status == 'pending' %}
 <script>
-document.getElementById('simulate-btn').addEventListener('click', function(){
-    fetch('{% url "payments:megapay_stub_trigger" %}', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({txn_id: {{ transaction.id }}})
-    }).then(r=>r.json()).then(j=>{
-        document.getElementById('result').innerText = JSON.stringify(j);
-        if(j.status === 'ok'){
-            // reload to show updated status
-            setTimeout(()=> location.reload(), 600);
+// Poll for status updates every 3 seconds
+let pollCount = 0;
+const maxPolls = 60; // Stop after 3 minutes
+
+function checkStatus() {
+    pollCount++;
+    if (pollCount > maxPolls) {
+        document.querySelector('.spinner-border').style.display = 'none';
+        document.querySelector('.lead').textContent = 'Taking too long? Check your phone or try again.';
+        return;
+    }
+    
+    fetch(window.location.href, {
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status !== 'pending') {
+            // Reload page to show new status
+            location.reload();
+        } else {
+            // Continue polling
+            setTimeout(checkStatus, 3000);
         }
-    }).catch(e=>{
-        document.getElementById('result').innerText = String(e);
+    })
+    .catch(err => {
+        console.error('Poll error:', err);
+        setTimeout(checkStatus, 5000);
     });
-});
+}
+
+// Start polling after 2 seconds
+setTimeout(checkStatus, 2000);
 </script>
+{% endif %}
 
 {% endblock %}

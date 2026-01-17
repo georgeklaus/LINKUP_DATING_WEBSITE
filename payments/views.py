@@ -35,14 +35,14 @@ def buy_coins(request):
             # MegaPay M-Pesa integration
             megapay_key = getattr(settings, 'MEGAPAY_API_KEY', None)
             megapay_base = getattr(settings, 'MEGAPAY_BASE_URL', None)
+            megapay_email = getattr(settings, 'MEGAPAY_EMAIL', None)
 
-            if not megapay_key or not megapay_base:
+            if not megapay_key or not megapay_base or not megapay_email:
                 messages.error(request, 'Payment provider is not configured. Please contact the site administrator.')
                 context = {'packages': packages}
                 return render(request, 'payments/buy_coins.html', context)
 
             headers = {
-                'Authorization': f'Bearer {megapay_key}',
                 'Content-Type': 'application/json'
             }
 
@@ -50,11 +50,13 @@ def buy_coins(request):
             unique_suffix = uuid.uuid4().hex[:8]
             provisional_ref = f"COINS_{request.user.id}_{package.id}_{unique_suffix}"
 
+            # MegaPay API format - api_key and email go in the body, not header
             payload = {
-                'phone_number': phone_number,
-                'amount': package.amount,
-                'transaction_reference': provisional_ref,
-                'callback_url': f"{request.build_absolute_uri('/')}payments/mpesa-callback/"
+                'api_key': megapay_key,
+                'email': megapay_email,
+                'amount': str(package.amount),
+                'msisdn': phone_number,
+                'reference': provisional_ref
             }
 
             # Create a pending transaction before calling the provider to avoid
@@ -70,11 +72,10 @@ def buy_coins(request):
             )
 
             try:
-                request_url = f"{megapay_base}/mpesa/stk-push"
+                request_url = f"{megapay_base}/initiatestk"
                 # Log the outgoing request for debugging (avoid logging sensitive keys in production)
                 logger.debug('MegaPay request URL: %s', request_url)
-                logger.debug('MegaPay request headers: %s', {k: ('<redacted>' if 'Authorization' in k else v) for k,v in headers.items()})
-                logger.debug('MegaPay request payload: %s', payload)
+                logger.debug('MegaPay request payload: %s', {k: ('<redacted>' if k == 'api_key' else v) for k,v in payload.items()})
 
                 response = requests.post(
                     request_url,
@@ -87,23 +88,20 @@ def buy_coins(request):
                     # Parse provider response for merchant/request id if present
                     try:
                         resp_json = response.json()
+                        logger.info('MegaPay response: %s', resp_json)
                     except Exception:
                         resp_json = {}
 
-                    merchant_id = resp_json.get('merchant_request_id') or resp_json.get('MerchantRequestID') or resp_json.get('merchantRequestId') or resp_json.get('merchant_request')
+                    # MegaPay returns transaction_request_id on success
+                    # BUT - webhook comes back with our original reference, so don't overwrite mpesa_code
+                    # Just log the MegaPay transaction ID for reference
+                    transaction_request_id = resp_json.get('transaction_request_id') or resp_json.get('TransactionID')
+                    if transaction_request_id:
+                        logger.info('MegaPay TransactionID: %s for our ref: %s', transaction_request_id, provisional_ref)
 
-                    # Update stored transaction with provider merchant id when available
-                    if merchant_id:
-                        transaction.mpesa_code = merchant_id
-                        transaction.save(update_fields=['mpesa_code'])
-
-                    messages.success(request, 'Payment initiated successfully! Check your phone to complete the transaction.')
-                    # If using the local stub, redirect to a pending page where developer
-                    # can manually trigger the simulated callback. In production flow we
-                    # would redirect to the success page after provider confirmation.
-                    if getattr(settings, 'USE_LOCAL_MEGAPAY_STUB', False):
-                        return redirect('payments:pending_payment', txn_id=transaction.id)
-                    return redirect('payments:payment_success')
+                    messages.success(request, 'Payment initiated! Check your phone for the M-Pesa prompt and enter your PIN.')
+                    # Always redirect to pending page - payment isn't complete until webhook confirms it
+                    return redirect('payments:pending_payment', txn_id=transaction.id)
                 else:
                     # Log response for debugging
                     try:
@@ -224,6 +222,15 @@ def mpesa_callback(request):
 @login_required
 def pending_payment(request, txn_id):
     txn = get_object_or_404(Transaction, pk=txn_id, user=request.user)
+    
+    # Support AJAX polling for status updates
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'status': txn.status,
+            'coins': txn.coins,
+            'amount': txn.amount,
+        })
+    
     return render(request, 'payments/pending_payment.html', {'transaction': txn})
 
 
