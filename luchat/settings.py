@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from decouple import config
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -62,12 +63,30 @@ TEMPLATES = [
 ]
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database Configuration
+# Supports DATABASE_URL (for Koyeb/Render/Heroku) or individual settings
+DATABASE_URL = config('DATABASE_URL', default='')
+
+if DATABASE_URL:
+    # Use DATABASE_URL for production (Neon, Heroku, etc.)
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
-}
+else:
+    # Fallback to individual settings or SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
+            'NAME': config('DB_NAME', default=str(BASE_DIR / 'db.sqlite3')),
+            'USER': config('DB_USER', default=''),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default=''),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+            } if 'mysql' in config('DB_ENGINE', default='') else {},
+        }
+    }
 
 # ASGI Configuration for Channels
 ASGI_APPLICATION = 'luchat.asgi.application'  # Changed from 'dating_app.asgi.application'
@@ -154,3 +173,30 @@ CELERY_BEAT_SCHEDULE = {
         'args': (10, 100),
     },
 }
+
+# ============================================
+# PRODUCTION SECURITY SETTINGS
+# ============================================
+if not DEBUG:
+    # HTTPS/SSL Settings
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # HSTS Settings
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Other security settings
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # CSRF trusted origins (add your domain)
+    CSRF_TRUSTED_ORIGINS = config(
+        'CSRF_TRUSTED_ORIGINS', 
+        default='', 
+        cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
+    )

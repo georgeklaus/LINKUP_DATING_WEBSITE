@@ -1,0 +1,34 @@
+# Render.com Blueprint
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: luchat
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate
+    startCommand: daphne -b 0.0.0.0 -p $PORT luchat.asgi:application
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: MEGAPAY_API_KEY
+        sync: false
+      - key: MEGAPAY_EMAIL
+        sync: false
+      - key: MEGAPAY_BASE_URL
+        value: "https://megapay.co.ke/backend/v1"
+      - key: USE_LOCAL_MEGAPAY_STUB
+        value: "False"
+      - key: PYTHON_VERSION
+        value: "3.11.0"

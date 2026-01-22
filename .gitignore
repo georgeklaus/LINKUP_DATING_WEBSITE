@@ -6,9 +6,12 @@ __pycache__/
 .eggs/
 *.egg
 *.pyc
+*.pyo
 
 # Virtual environment
 .venv/
+venv/
+ENV/
 .env/
 
 # Django stuff:
@@ -16,12 +19,14 @@ __pycache__/
 staticfiles/
 media/
 db.sqlite3
+logs/
 
-# Env file
+# Env file (keep .env.production as template)
 .env
 
-# VS Code
+# VS Code / IDE
 .vscode/
+.idea/
 
 # Byte-compiled / optimized / DLL files
 *.pyc
@@ -31,9 +36,13 @@ db.sqlite3
 /build/
 /dist/
 
-# PyCharm
-.idea/
-
 # OS files
 .DS_Store
 Thumbs.db
+
+# Celery
+celerybeat-schedule
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+celerybeat.pid
+*.pid
