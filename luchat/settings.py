@@ -90,15 +90,34 @@ else:
 
 # ASGI Configuration for Channels
 ASGI_APPLICATION = 'luchat.asgi.application'  # Changed from 'dating_app.asgi.application'
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            # Default: local Redis on port 6379
-            'hosts': [config('REDIS_URL', default='redis://127.0.0.1:6379')],
+
+# Redis URL for channel layers
+REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379')
+
+# Configure channel layers with SSL support for Upstash (rediss://)
+if REDIS_URL.startswith('rediss://'):
+    # Upstash or other SSL Redis - need to parse and configure SSL
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [{
+                    'address': REDIS_URL,
+                    'ssl_cert_reqs': None,  # Don't verify SSL cert
+                }],
+            },
         },
-    },
-}
+    }
+else:
+    # Local Redis without SSL
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+            },
+        },
+    }
 
 # Custom User Model
 AUTH_USER_MODEL = 'users.CustomUser'
