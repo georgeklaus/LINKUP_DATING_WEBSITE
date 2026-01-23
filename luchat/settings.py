@@ -96,15 +96,18 @@ REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379')
 
 # Configure channel layers with SSL support for Upstash (rediss://)
 if REDIS_URL.startswith('rediss://'):
-    # Upstash or other SSL Redis - need to parse and configure SSL
+    # Upstash or other SSL Redis
+    import ssl
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                'hosts': [{
-                    'address': REDIS_URL,
-                    'ssl_cert_reqs': None,  # Don't verify SSL cert
-                }],
+                'hosts': [REDIS_URL],
+                'ssl': ssl_context,
             },
         },
     }
