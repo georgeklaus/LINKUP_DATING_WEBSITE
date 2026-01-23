@@ -126,7 +126,9 @@ const roomName = JSON.parse(document.getElementById('room-name').textContent || 
 // Only open a WebSocket when a room is selected
 let chatSocket = null;
 if (roomName) {
-    chatSocket = new WebSocket('ws://' + window.location.host + '/ws/chat/' + roomName + '/');
+    // Use wss:// for HTTPS, ws:// for HTTP
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    chatSocket = new WebSocket(wsProtocol + window.location.host + '/ws/chat/' + roomName + '/');
 }
 
 const chatMessages = document.getElementById('chat-messages');
