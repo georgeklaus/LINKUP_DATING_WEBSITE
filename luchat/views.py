@@ -150,12 +150,20 @@ def dashboard(request):
 from django.http import JsonResponse
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.conf import settings
+import re
 
 def test_channels(request):
     """Test endpoint to check if channels/Redis are working"""
     result = {'status': 'unknown'}
     
     try:
+        # Show Redis URL format (mask password)
+        redis_url = getattr(settings, 'REDIS_URL', 'not set')
+        masked_url = re.sub(r'(://[^:]+:)[^@]+(@)', r'\1****\2', redis_url)
+        result['redis_url_format'] = masked_url
+        result['channel_config'] = str(settings.CHANNEL_LAYERS.get('default', {}).get('CONFIG', {}))[:200]
+        
         channel_layer = get_channel_layer()
         result['channel_layer'] = str(type(channel_layer))
         
