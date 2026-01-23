@@ -137,6 +137,19 @@ CLOUDINARY_URL = config('CLOUDINARY_URL', default='')
 
 if CLOUDINARY_URL:
     # Production: Use Cloudinary for media storage
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    
+    # Parse CLOUDINARY_URL and configure
+    cloudinary.config(secure=True)
+    
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default='drhvwmzrg'),
+        'API_KEY': config('CLOUDINARY_API_KEY', default='573282542697625'),
+        'API_SECRET': config('CLOUDINARY_API_SECRET', default='o09JaofQFYWhxxZqwVf7P2F-omY'),
+    }
+    
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     MEDIA_URL = '/media/'
 else:
