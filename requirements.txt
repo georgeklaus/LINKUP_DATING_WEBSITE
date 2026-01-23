@@ -60,3 +60,5 @@ wcwidth==0.2.13
 wheel==0.45.1
 whitenoise==6.8.2
 zope.interface==7.2
+cloudinary==1.44.1
+django-cloudinary-storage==0.3.0
