@@ -129,9 +129,6 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Use WhiteNoise for serving static files when using Daphne in development/production
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-
 # Media files - Use Cloudinary in production, local storage in development
 CLOUDINARY_URL = config('CLOUDINARY_URL', default='')
 
@@ -143,11 +140,26 @@ CLOUDINARY_STORAGE = {
 }
 
 if CLOUDINARY_URL:
-    # Production: Use Cloudinary for media storage
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    # Production: Use Cloudinary for media storage (Django 4.2+ uses STORAGES)
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        },
+    }
     MEDIA_URL = '/media/'
 else:
     # Development: Use local file storage
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        },
+    }
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
 
