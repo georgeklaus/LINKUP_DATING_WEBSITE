@@ -96,14 +96,22 @@ REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379')
 
 # Configure channel layers with SSL support for Upstash (rediss://)
 if REDIS_URL.startswith('rediss://'):
-    # Upstash or other SSL Redis - use aioredis compatible format
-    # channels_redis expects host config as dict with address key
+    # Upstash or other SSL Redis - parse URL and build host tuple
+    from urllib.parse import urlparse, unquote
+    
+    parsed = urlparse(REDIS_URL)
+    redis_host = parsed.hostname
+    redis_port = parsed.port or 6379
+    redis_password = unquote(parsed.password) if parsed.password else None
+    
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                'hosts': [REDIS_URL.replace('rediss://', 'rediss://', 1)],
-                'symmetric_encryption_keys': [config('SECRET_KEY', default='fallback-key')],
+                'hosts': [{
+                    'address': f'rediss://{redis_host}:{redis_port}',
+                    'password': redis_password,
+                }],
             },
         },
     }
