@@ -145,3 +145,34 @@ def dashboard(request):
     context['recent_chats'] = recent_chats
 
     return render(request, 'dashboard.html', context)
+
+
+from django.http import JsonResponse
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+def test_channels(request):
+    """Test endpoint to check if channels/Redis are working"""
+    result = {'status': 'unknown'}
+    
+    try:
+        channel_layer = get_channel_layer()
+        result['channel_layer'] = str(type(channel_layer))
+        
+        # Test Redis connection
+        async_to_sync(channel_layer.send)('test_channel', {'type': 'test.message', 'message': 'hello'})
+        result['send'] = 'ok'
+        
+        # Try to receive (might timeout if channel doesn't exist, that's ok)
+        try:
+            msg = async_to_sync(channel_layer.receive)('test_channel')
+            result['receive'] = 'ok'
+        except Exception as e:
+            result['receive'] = str(e)[:100]
+        
+        result['status'] = 'ok'
+    except Exception as e:
+        result['status'] = 'error'
+        result['error'] = str(e)[:200]
+    
+    return JsonResponse(result)

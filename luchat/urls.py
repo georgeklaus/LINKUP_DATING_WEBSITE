@@ -14,6 +14,7 @@ urlpatterns = [
     path('chat/', include('chat.urls', namespace='chat')),
     path('payments/', include('payments.urls', namespace='payments')),
     path('matching/', include('matching.urls', namespace='matching')),
+    path('test-channels/', views.test_channels, name='test_channels'),
 ]
 
 if settings.DEBUG:
