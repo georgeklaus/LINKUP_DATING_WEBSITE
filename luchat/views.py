@@ -183,4 +183,9 @@ def test_channels(request):
         result['status'] = 'error'
         result['error'] = str(e)[:200]
     
+    # Add Cloudinary check
+    result['cloudinary_url_set'] = bool(getattr(settings, 'CLOUDINARY_URL', ''))
+    result['default_file_storage'] = getattr(settings, 'DEFAULT_FILE_STORAGE', 'not set')
+    result['cloudinary_storage'] = getattr(settings, 'CLOUDINARY_STORAGE', {}).get('CLOUD_NAME', 'not set')
+    
     return JsonResponse(result)
